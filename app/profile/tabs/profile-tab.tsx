@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Trash2, InfoIcon as InfoCircle } from "lucide-react"
+import { Trash2, InfoIcon as InfoCircle, Loader2 } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { AvatarUpload } from "@/components/avatar-upload"
 
@@ -23,65 +23,158 @@ const profileFormSchema = z.object({
       message: "Please enter a valid email address.",
     })
     .optional(),
-  profileContext: z.string().max(1500).optional(),
-  systemPromptTemplate: z.string().max(3000).optional(),
-  largeTextThreshold: z.coerce.number().min(1000).max(50000).default(8000),
+  profile_context: z.string().max(1500).optional(),
+  system_prompt_template: z.string().max(3000).optional(),
+  large_text_threshold: z.coerce.number().min(1000).max(50000).default(8000),
 })
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>
 
 export default function ProfileTab() {
   const [isLoading, setIsLoading] = useState(false)
+  const [isInitializing, setIsInitializing] = useState(true)
   const [isDeleting, setIsDeleting] = useState(false)
   const [profileImage, setProfileImage] = useState<string | undefined>(
     "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-FprAmFzcfN5UuMoSan7zmdZxCEe71z.png",
   )
 
-  const form = useForm<ProfileFormValues>({
-    resolver: zodResolver(profileFormSchema),
-    defaultValues: {
-      name: "Artem",
-      email: "artem.vysotsky@gmail.com",
-      profileContext: "",
-      systemPromptTemplate: `Today is {local_date}.
+  // Default values
+  const defaultValues: ProfileFormValues = {
+    name: "",
+    email: "",
+    profile_context: "",
+    system_prompt_template: `Today is {local_date}.
 
 User info: "{profile_context}"
 
 {assistant}.
 
 {prompt}`,
-      largeTextThreshold: 8000,
-    },
+    large_text_threshold: 8000,
+  }
+
+  const form = useForm<ProfileFormValues>({
+    resolver: zodResolver(profileFormSchema),
+    defaultValues,
     mode: "onChange",
   })
 
-  function onSubmit(data: ProfileFormValues) {
+  // Load profile data when component mounts
+  useEffect(() => {
+    const loadProfile = async () => {
+      setIsInitializing(true)
+      try {
+        const response = await fetch("/api/profile")
+        
+        if (!response.ok) {
+          throw new Error("Failed to load profile data")
+        }
+        
+        const data = await response.json()
+        
+        // Reset the form with the loaded values, falling back to defaults if needed
+        form.reset({
+          ...defaultValues,
+          name: data.name || defaultValues.name,
+          email: data.email || defaultValues.email,
+          profile_context: data.profile_context || defaultValues.profile_context,
+          system_prompt_template: data.system_prompt_template || defaultValues.system_prompt_template,
+          large_text_threshold: data.large_text_threshold || defaultValues.large_text_threshold,
+        })
+
+        // Set profile image if it exists
+        if (data.avatar_url) {
+          setProfileImage(data.avatar_url)
+        }
+      } catch (error) {
+        console.error("Error loading profile data:", error)
+        toast.error("Failed to load profile data", {
+          description: "Please try again or contact support if the issue persists."
+        })
+      } finally {
+        setIsInitializing(false)
+      }
+    }
+    
+    loadProfile()
+  }, [form])
+
+  async function onSubmit(data: ProfileFormValues) {
     setIsLoading(true)
 
-    // Simulate API call
-    setTimeout(() => {
-      console.log(data)
-      setIsLoading(false)
+    try {
+      const response = await fetch("/api/profile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...data,
+          avatar_url: profileImage,
+        }),
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to update profile")
+      }
+      
       toast.success("Profile updated", {
         description: "Your profile has been updated successfully.",
       })
-    }, 1000)
+    } catch (error) {
+      console.error("Error saving profile:", error)
+      toast.error("Failed to update profile", {
+        description: "Please try again or contact support if the issue persists."
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  function handleDeleteAccount() {
+  async function handleDeleteAccount() {
+    if (!confirm("Are you sure you want to delete your account? This action cannot be undone.")) {
+      return
+    }
+    
     setIsDeleting(true)
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsDeleting(false)
+    try {
+      const response = await fetch("/api/profile", {
+        method: "DELETE",
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to delete account")
+      }
+      
       toast.success("Account deleted", {
         description: "Your account has been permanently deleted.",
       })
-    }, 1000)
+      
+      // Redirect to sign-in page after account deletion
+      window.location.href = "/signin"
+    } catch (error) {
+      console.error("Error deleting account:", error)
+      toast.error("Failed to delete account", {
+        description: "Please try again or contact support if the issue persists."
+      })
+      setIsDeleting(false)
+    }
   }
 
-  const profileContextLength = form.watch("profileContext")?.length || 0
-  const systemPromptLength = form.watch("systemPromptTemplate")?.length || 0
+  const profileContextLength = form.watch("profile_context")?.length || 0
+  const systemPromptLength = form.watch("system_prompt_template")?.length || 0
+
+  if (isInitializing) {
+    return (
+      <div className="flex justify-center items-center h-[calc(100vh-200px)]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <span className="ml-2 text-muted-foreground">Loading profile...</span>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-8">
@@ -138,7 +231,7 @@ User info: "{profile_context}"
                     <path d="M3 4a2 2 0 00-2 2v1.161l8.441 4.221a1.25 1.25 0 001.118 0L19 7.162V6a2 2 0 00-2-2H3z" />
                     <path d="M19 8.839l-7.77 3.885a2.75 2.75 0 01-2.46 0L1 8.839V14a2 2 0 002 2h14a2 2 0 002-2V8.839z" />
                   </svg>
-                  {form.getValues("email")}
+                  {form.watch("email")}
                 </span>
               </div>
             </div>
@@ -147,7 +240,7 @@ User info: "{profile_context}"
           <div className="space-y-4">
             <FormField
               control={form.control}
-              name="profileContext"
+              name="profile_context"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>What would you like the AI to know about you to provide better responses?</FormLabel>
@@ -167,7 +260,7 @@ User info: "{profile_context}"
           <div className="space-y-4">
             <FormField
               control={form.control}
-              name="systemPromptTemplate"
+              name="system_prompt_template"
               render={({ field }) => (
                 <FormItem>
                   <div className="flex items-center gap-2">
@@ -194,7 +287,7 @@ User info: "{profile_context}"
           <div className="space-y-4">
             <FormField
               control={form.control}
-              name="largeTextThreshold"
+              name="large_text_threshold"
               render={({ field }) => (
                 <FormItem>
                   <div className="flex items-center gap-2">
@@ -213,7 +306,14 @@ User info: "{profile_context}"
           </div>
 
           <Button type="submit" disabled={isLoading} className="bg-[#18181b] hover:bg-[#18181b]/90">
-            Save Profile
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              "Save Profile"
+            )}
           </Button>
         </form>
       </Form>
@@ -232,8 +332,17 @@ User info: "{profile_context}"
           disabled={isDeleting}
           className="flex items-center gap-2"
         >
-          <Trash2 className="h-4 w-4" />
-          {isDeleting ? "Deleting..." : "Delete My Account Permanently"}
+          {isDeleting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Deleting...
+            </>
+          ) : (
+            <>
+              <Trash2 className="h-4 w-4" />
+              Delete My Account Permanently
+            </>
+          )}
         </Button>
       </div>
     </div>

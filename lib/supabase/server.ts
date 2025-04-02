@@ -1,6 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import type { User } from '@supabase/supabase-js'
+import { User, createClient as baseCreateClient } from '@supabase/supabase-js'
 import { jwtDecode } from 'jwt-decode'
 // Make createClient async and await cookies()
 export async function createClient() {
@@ -26,6 +26,19 @@ export async function createClient() {
             console.error("Error setting cookies:", error)
           }
         }
+      },
+    }
+  )
+}
+
+export async function createServiceRoleClient() {
+  return baseCreateClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
       },
     }
   )
