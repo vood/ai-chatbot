@@ -1,18 +1,17 @@
 import { z } from 'zod';
-import { Session } from 'next-auth';
 import { DataStreamWriter, streamObject, tool } from 'ai';
 import { getDocumentById, saveSuggestions } from '@/lib/db/queries';
-import { Suggestion } from '@/lib/db/schema';
 import { generateUUID } from '@/lib/utils';
 import { myProvider } from '../providers';
+import { Tables } from '@/supabase/types';
 
 interface RequestSuggestionsProps {
-  session: Session;
+  user: { id?: string };
   dataStream: DataStreamWriter;
 }
 
 export const requestSuggestions = ({
-  session,
+  user,
   dataStream,
 }: RequestSuggestionsProps) =>
   tool({
@@ -32,7 +31,7 @@ export const requestSuggestions = ({
       }
 
       const suggestions: Array<
-        Omit<Suggestion, 'userId' | 'createdAt' | 'documentCreatedAt'>
+        Omit<Tables<'suggestions'>, 'user_id' | 'created_at' | 'document_created_at'>
       > = [];
 
       const { elementStream } = streamObject({
@@ -50,12 +49,12 @@ export const requestSuggestions = ({
 
       for await (const element of elementStream) {
         const suggestion = {
-          originalText: element.originalSentence,
-          suggestedText: element.suggestedSentence,
+          original_text: element.originalSentence,
+          suggested_text: element.suggestedSentence,
           description: element.description,
           id: generateUUID(),
-          documentId: documentId,
-          isResolved: false,
+          document_id: documentId,
+          is_resolved: false,
         };
 
         dataStream.writeData({
@@ -66,15 +65,20 @@ export const requestSuggestions = ({
         suggestions.push(suggestion);
       }
 
-      if (session.user?.id) {
-        const userId = session.user.id;
+      if (user.id) {
+        const userId = user.id;
 
         await saveSuggestions({
           suggestions: suggestions.map((suggestion) => ({
-            ...suggestion,
-            userId,
-            createdAt: new Date(),
-            documentCreatedAt: document.createdAt,
+            id: suggestion.id,
+            document_id: suggestion.document_id,
+            original_text: suggestion.original_text,
+            suggested_text: suggestion.suggested_text,
+            description: suggestion.description,
+            is_resolved: suggestion.is_resolved,
+            user_id: userId,
+            created_at: new Date().toISOString(),
+            document_created_at: document.created_at,
           })),
         });
       }

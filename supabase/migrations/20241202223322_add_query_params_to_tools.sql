@@ -1,0 +1,1 @@
+alter table tools add column query_params jsonb default '{}'::jsonb;

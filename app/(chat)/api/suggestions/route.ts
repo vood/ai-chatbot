@@ -1,33 +1,36 @@
-import { auth } from '@/app/(auth)/auth';
+import { auth } from '@/lib/supabase/server';
+import { NextRequest, NextResponse } from 'next/server';
+
 import { getSuggestionsByDocumentId } from '@/lib/db/queries';
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const documentId = searchParams.get('documentId');
+export const runtime = 'edge';
 
-  if (!documentId) {
-    return new Response('Not Found', { status: 404 });
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const documentId = searchParams.get('documentId');
+
+    if (!documentId) {
+      return NextResponse.json({ error: 'Missing documentId parameter' }, { status: 400 });
+    }
+
+    const user = await auth();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const suggestions = await getSuggestionsByDocumentId({
+      documentId,
+    });
+
+    return NextResponse.json({ suggestions });
+
+  } catch (error) {
+    console.error('Error fetching suggestions:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json(
+      { error: 'Failed to fetch suggestions', details: errorMessage },
+      { status: 500 },
+    );
   }
-
-  const session = await auth();
-
-  if (!session || !session.user) {
-    return new Response('Unauthorized', { status: 401 });
-  }
-
-  const suggestions = await getSuggestionsByDocumentId({
-    documentId,
-  });
-
-  const [suggestion] = suggestions;
-
-  if (!suggestion) {
-    return Response.json([], { status: 200 });
-  }
-
-  if (suggestion.userId !== session.user.id) {
-    return new Response('Unauthorized', { status: 401 });
-  }
-
-  return Response.json(suggestions, { status: 200 });
 }

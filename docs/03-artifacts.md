@@ -229,7 +229,7 @@ export const document = pgTable(
   "Document",
   {
     id: uuid("id").notNull().defaultRandom(),
-    createdAt: timestamp("createdAt").notNull(),
+    created_at: timestamp("created_at").notNull(),
     title: text("title").notNull(),
     content: text("content"),
     kind: varchar("text", { enum: [..., "custom"] }) // Add the custom artifact kind here
@@ -241,7 +241,7 @@ export const document = pgTable(
   },
   (table) => {
     return {
-      pk: primaryKey({ columns: [table.id, table.createdAt] }),
+      pk: primaryKey({ columns: [table.id, table.created_at] }),
     };
   },
 );

@@ -49,7 +49,7 @@ import {
 import type { Chat } from '@/lib/db/schema';
 import { fetcher } from '@/lib/utils';
 import { useChatVisibility } from '@/hooks/use-chat-visibility';
-
+import { VisibilityType } from '@/components/visibility-selector';
 type GroupedChats = {
   today: Chat[];
   yesterday: Chat[];
@@ -71,14 +71,14 @@ const PureChatItem = ({
 }) => {
   const { visibilityType, setVisibilityType } = useChatVisibility({
     chatId: chat.id,
-    initialVisibility: chat.visibility,
+    initialVisibility: chat.sharing as VisibilityType,
   });
 
   return (
     <SidebarMenuItem>
       <SidebarMenuButton asChild isActive={isActive}>
         <Link href={`/chat/${chat.id}`} onClick={() => setOpenMobile(false)}>
-          <span>{chat.title}</span>
+          <span>{chat.name}</span>
         </Link>
       </SidebarMenuButton>
 
@@ -253,7 +253,7 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
 
     return chats.reduce(
       (groups, chat) => {
-        const chatDate = new Date(chat.createdAt);
+        const chatDate = new Date(chat.created_at);
 
         if (isToday(chatDate)) {
           groups.today.push(chat);

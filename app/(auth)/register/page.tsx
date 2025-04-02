@@ -2,48 +2,74 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useActionState, useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import { AuthForm } from '@/components/auth-form';
 import { SubmitButton } from '@/components/submit-button';
-
-import { register, type RegisterActionState } from '../actions';
+import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/components/toast';
 
 export default function Page() {
   const router = useRouter();
+  const supabase = createClient();
 
   const [email, setEmail] = useState('');
-  const [isSuccessful, setIsSuccessful] = useState(false);
 
-  const [state, formAction] = useActionState<RegisterActionState, FormData>(
-    register,
-    {
-      status: 'idle',
-    },
-  );
+  const handleSubmit = async (formData: FormData) => {
+    setEmail(formData.get('email') as string);
+    const password = formData.get('password') as string;
+    const emailValue = formData.get('email') as string;
 
-  useEffect(() => {
-    if (state.status === 'user_exists') {
-      toast({ type: 'error', description: 'Account already exists!' });
-    } else if (state.status === 'failed') {
-      toast({ type: 'error', description: 'Failed to create account!' });
-    } else if (state.status === 'invalid_data') {
+    if (!emailValue || !password) {
+        toast({
+            type: 'error',
+            description: 'Email and password are required',
+        });
+        return;
+    }
+
+    const { data, error } = await supabase.auth.signUp({
+      email: emailValue,
+      password: password,
+      options: {
+        // Optional: Email confirmation is often enabled by default in Supabase.
+        // emailRedirectTo: `${location.origin}/api/auth/callback`, // Uncomment if you have a callback route
+      },
+    });
+
+    if (error) {
+      console.error('Signup error:', error);
       toast({
         type: 'error',
-        description: 'Failed validating your submission!',
+        description: error.message || 'Failed to create account!',
       });
-    } else if (state.status === 'success') {
-      toast({ type: 'success', description: 'Account created successfully!' });
-
-      setIsSuccessful(true);
-      router.refresh();
+    } else if (data.user) {
+      // Check if email confirmation is required
+      if (data.user.identities && data.user.identities.length === 0) {
+        toast({
+          type: 'success',
+          description: 'Account created! Please check your email for confirmation.',
+        });
+        // Optionally redirect to a "check email" page
+        // router.push('/check-email');
+      } else {
+        // User is created and confirmed (e.g., email confirmation disabled or auto-confirmed)
+        toast({
+          type: 'success',
+          description: 'Account created successfully! You are now logged in.'
+        });
+        // Refresh the page to update server session state
+        router.refresh();
+        // Optionally redirect to home
+        // router.push('/');
+      }
+    } else {
+        // Should not happen in normal flow, but handle just in case
+        toast({
+            type: 'error',
+            description: 'An unexpected error occurred during signup.',
+        });
     }
-  }, [state]);
-
-  const handleSubmit = (formData: FormData) => {
-    setEmail(formData.get('email') as string);
-    formAction(formData);
   };
 
   return (
@@ -56,7 +82,7 @@ export default function Page() {
           </p>
         </div>
         <AuthForm action={handleSubmit} defaultEmail={email}>
-          <SubmitButton isSuccessful={isSuccessful}>Sign Up</SubmitButton>
+          <SubmitButton>Sign Up</SubmitButton>
           <p className="text-center text-sm text-gray-600 mt-4 dark:text-zinc-400">
             {'Already have an account? '}
             <Link

@@ -49,7 +49,7 @@ export function projectWithPositions(
   suggestions: Array<Suggestion>,
 ): Array<UISuggestion> {
   return suggestions.map((suggestion) => {
-    const positions = findPositionsInDoc(doc, suggestion.originalText);
+    const positions = findPositionsInDoc(doc, suggestion.original_text);
 
     if (!positions) {
       return {
@@ -91,7 +91,7 @@ export function createSuggestionWidget(
       const newDecorations = DecorationSet.create(
         state.doc,
         currentDecorations.find().filter((decoration: Decoration) => {
-          return decoration.spec.suggestionId !== suggestion.id;
+          return decoration.spec.suggestion_id !== suggestion.id;
         }),
       );
 
@@ -105,7 +105,7 @@ export function createSuggestionWidget(
     const textTransaction = view.state.tr.replaceWith(
       suggestion.selectionStart,
       suggestion.selectionEnd,
-      state.schema.text(suggestion.suggestedText),
+      state.schema.text(suggestion.suggested_text),
     );
 
     textTransaction.setMeta('no-debounce', true);

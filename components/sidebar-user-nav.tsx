@@ -1,9 +1,10 @@
 'use client';
-import { ChevronUp } from 'lucide-react';
+import { ChevronUp, User } from 'lucide-react';
 import Image from 'next/image';
-import type { User } from 'next-auth';
+import type { User as AuthUser } from 'next-auth';
 import { signOut } from 'next-auth/react';
 import { useTheme } from 'next-themes';
+import Link from 'next/link';
 
 import {
   DropdownMenu,
@@ -18,7 +19,7 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
 
-export function SidebarUserNav({ user }: { user: User }) {
+export function SidebarUserNav({ user }: { user: AuthUser }) {
   const { setTheme, theme } = useTheme();
 
   return (
@@ -42,6 +43,12 @@ export function SidebarUserNav({ user }: { user: User }) {
             side="top"
             className="w-[--radix-popper-anchor-width]"
           >
+            <DropdownMenuItem asChild>
+              <Link href="/profile" className="cursor-pointer flex items-center gap-2">
+                <User size={16} />
+                <span>Profile</span>
+              </Link>
+            </DropdownMenuItem>
             <DropdownMenuItem
               className="cursor-pointer"
               onSelect={() => setTheme(theme === 'dark' ? 'light' : 'dark')}

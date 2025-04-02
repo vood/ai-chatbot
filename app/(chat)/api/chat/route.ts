@@ -5,7 +5,7 @@ import {
   smoothStream,
   streamText,
 } from 'ai';
-import { auth } from '@/app/(auth)/auth';
+import { auth } from '@/lib/supabase/server';
 import { systemPrompt } from '@/lib/ai/prompts';
 import {
   deleteChatById,
@@ -25,6 +25,7 @@ import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
 import { getWeather } from '@/lib/ai/tools/get-weather';
 import { isProductionEnvironment } from '@/lib/constants';
 import { myProvider } from '@/lib/ai/providers';
+import { Json } from '@/supabase/types';
 
 export const maxDuration = 60;
 
@@ -40,9 +41,9 @@ export async function POST(request: Request) {
       selectedChatModel: string;
     } = await request.json();
 
-    const session = await auth();
+    const user = await auth();
 
-    if (!session || !session.user || !session.user.id) {
+    if (!user) {
       return new Response('Unauthorized', { status: 401 });
     }
 
@@ -59,9 +60,9 @@ export async function POST(request: Request) {
         message: userMessage,
       });
 
-      await saveChat({ id, userId: session.user.id, title });
+      await saveChat({ id, name: title, userId: user.id, workspace_id: user.current_workspace, model: selectedChatModel, prompt: '', context_length: 1000, embeddings_provider: 'openai', include_profile_context: true, include_workspace_instructions: true, temperature: 0.5, assistant_id: null, folder_id: null, sharing: 'private' });
     } else {
-      if (chat.userId !== session.user.id) {
+      if (chat.user_id !== user.id) {
         return new Response('Unauthorized', { status: 401 });
       }
     }
@@ -69,12 +70,18 @@ export async function POST(request: Request) {
     await saveMessages({
       messages: [
         {
-          chatId: id,
+          chat_id: id,
           id: userMessage.id,
           role: 'user',
-          parts: userMessage.parts,
-          attachments: userMessage.experimental_attachments ?? [],
-          createdAt: new Date(),
+          parts: userMessage.parts as unknown as Json,
+          attachments: (userMessage.experimental_attachments ?? []) as unknown as Json,
+          created_at: new Date().toISOString(),
+          content: userMessage.content,
+          image_paths: [],
+          model: selectedChatModel,
+          sequence_number: 0,
+          user_id: user.id,
+          word_count: 0,
         },
       ],
     });
@@ -99,15 +106,15 @@ export async function POST(request: Request) {
           experimental_generateMessageId: generateUUID,
           tools: {
             getWeather,
-            createDocument: createDocument({ session, dataStream }),
-            updateDocument: updateDocument({ session, dataStream }),
+            createDocument: createDocument({ user: user, dataStream }),
+            updateDocument: updateDocument({ user: user, dataStream }),
             requestSuggestions: requestSuggestions({
-              session,
+              user: user,
               dataStream,
             }),
           },
           onFinish: async ({ response }) => {
-            if (session.user?.id) {
+            if (user.id) {
               try {
                 const assistantId = getTrailingMessageId({
                   messages: response.messages.filter(
@@ -128,12 +135,17 @@ export async function POST(request: Request) {
                   messages: [
                     {
                       id: assistantId,
-                      chatId: id,
+                      chat_id: id,
                       role: assistantMessage.role,
-                      parts: assistantMessage.parts,
-                      attachments:
-                        assistantMessage.experimental_attachments ?? [],
-                      createdAt: new Date(),
+                      parts: assistantMessage.parts as Json,
+                      attachments: (assistantMessage.experimental_attachments ?? []) as unknown as Json,
+                      created_at: new Date().toISOString(),
+                      content: assistantMessage.content,
+                      image_paths: [],
+                      model: selectedChatModel,
+                      sequence_number: 0,
+                      user_id: user.id,
+                      word_count: 0,
                     },
                   ],
                 });
@@ -154,11 +166,13 @@ export async function POST(request: Request) {
           sendReasoning: true,
         });
       },
-      onError: () => {
+      onError: (error) => {
+        console.error(error);
         return 'Oops, an error occured!';
       },
     });
   } catch (error) {
+    console.error(error);
     return new Response('An error occurred while processing your request!', {
       status: 404,
     });
@@ -173,16 +187,20 @@ export async function DELETE(request: Request) {
     return new Response('Not Found', { status: 404 });
   }
 
-  const session = await auth();
+  const user = await auth();
 
-  if (!session || !session.user) {
+  if (!user) {
     return new Response('Unauthorized', { status: 401 });
   }
 
   try {
     const chat = await getChatById({ id });
 
-    if (chat.userId !== session.user.id) {
+    if (!chat) {
+      return new Response('Chat Not Found', { status: 404 });
+    }
+
+    if (chat.user_id !== user.id) {
       return new Response('Unauthorized', { status: 401 });
     }
 

@@ -2,11 +2,12 @@
 
 import { generateText, Message } from 'ai';
 import { cookies } from 'next/headers';
+import { revalidatePath } from 'next/cache';
 
 import {
   deleteMessagesByChatIdAfterTimestamp,
   getMessageById,
-  updateChatVisiblityById,
+  updateChatSharingById,
 } from '@/lib/db/queries';
 import { VisibilityType } from '@/components/visibility-selector';
 import { myProvider } from '@/lib/ai/providers';
@@ -35,11 +36,18 @@ export async function generateTitleFromUserMessage({
 }
 
 export async function deleteTrailingMessages({ id }: { id: string }) {
-  const [message] = await getMessageById({ id });
+  const message = await getMessageById({ id });
+
+  if (!message) {
+    console.error(`Message with id ${id} not found for deletion.`);
+    return;
+  }
+
+  const created_atDate = new Date(message.created_at);
 
   await deleteMessagesByChatIdAfterTimestamp({
-    chatId: message.chatId,
-    timestamp: message.createdAt,
+    chatId: message.chat_id,
+    timestamp: created_atDate,
   });
 }
 
@@ -50,5 +58,7 @@ export async function updateChatVisibility({
   chatId: string;
   visibility: VisibilityType;
 }) {
-  await updateChatVisiblityById({ chatId, visibility });
+  await updateChatSharingById({ chatId, sharing: visibility });
+  revalidatePath('/');
+  revalidatePath(`/chat/${chatId}`);
 }

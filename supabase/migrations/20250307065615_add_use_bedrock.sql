@@ -1,0 +1,3 @@
+ALTER TABLE profiles
+ADD COLUMN use_bedrock BOOLEAN DEFAULT FALSE;
+

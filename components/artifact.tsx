@@ -28,6 +28,7 @@ import { textArtifact } from '@/artifacts/text/client';
 import equal from 'fast-deep-equal';
 import { UseChatHelpers } from '@ai-sdk/react';
 
+
 export const artifactDefinitions = [
   textArtifact,
   codeArtifact,
@@ -54,6 +55,7 @@ export interface UIArtifact {
 function PureArtifact({
   chatId,
   input,
+  votes,
   setInput,
   handleSubmit,
   status,
@@ -64,11 +66,11 @@ function PureArtifact({
   messages,
   setMessages,
   reload,
-  votes,
   isReadonly,
 }: {
   chatId: string;
   input: string;
+  votes: Vote[];
   setInput: UseChatHelpers['setInput'];
   status: UseChatHelpers['status'];
   stop: UseChatHelpers['stop'];
@@ -76,7 +78,6 @@ function PureArtifact({
   setAttachments: Dispatch<SetStateAction<Array<Attachment>>>;
   messages: Array<UIMessage>;
   setMessages: UseChatHelpers['setMessages'];
-  votes: Array<Vote> | undefined;
   append: UseChatHelpers['append'];
   handleSubmit: UseChatHelpers['handleSubmit'];
   reload: UseChatHelpers['reload'];
@@ -154,7 +155,7 @@ function PureArtifact({
             const newDocument = {
               ...currentDocument,
               content: updatedContent,
-              createdAt: new Date(),
+              created_at: new Date().toISOString(),
             };
 
             return [...currentDocuments, newDocument];
@@ -422,7 +423,7 @@ function PureArtifact({
                   ) : document ? (
                     <div className="text-sm text-muted-foreground">
                       {`Updated ${formatDistance(
-                        new Date(document.createdAt),
+                        new Date(document.created_at),
                         new Date(),
                         {
                           addSuffix: true,

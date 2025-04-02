@@ -92,8 +92,8 @@ export function DocumentPreview({
           kind: artifact.kind,
           content: artifact.content,
           id: artifact.documentId,
-          createdAt: new Date(),
-          userId: 'noop',
+          created_at: new Date().toISOString(),
+          user_id: 'noop',
         }
       : null;
 
@@ -108,7 +108,7 @@ export function DocumentPreview({
       />
       <DocumentHeader
         title={document.title}
-        kind={document.kind}
+        kind={document.kind as ArtifactKind}
         isStreaming={artifact.status === 'streaming'}
       />
       <DocumentContent document={document} />

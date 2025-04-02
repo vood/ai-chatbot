@@ -43,7 +43,7 @@ function PureArtifactMessages({
           isLoading={status === 'streaming' && index === messages.length - 1}
           vote={
             votes
-              ? votes.find((vote) => vote.messageId === message.id)
+              ? votes.find((vote) => vote.message_id === message.id)
               : undefined
           }
           setMessages={setMessages}

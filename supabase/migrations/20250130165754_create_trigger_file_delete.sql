@@ -1,0 +1,2 @@
+CREATE TRIGGER delete_old_file BEFORE DELETE ON files FOR EACH ROW
+EXECUTE PROCEDURE delete_old_file ();

@@ -10,7 +10,7 @@ import type {
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-import type { DBMessage, Document } from '@/lib/db/schema';
+import type { Message as DBMessage, Document } from '@/lib/db/schema';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -149,7 +149,7 @@ export function getDocumentTimestampByIndex(
   if (!documents) return new Date();
   if (index > documents.length) return new Date();
 
-  return documents[index].createdAt;
+  return documents[index].created_at;
 }
 
 export function getTrailingMessageId({
