@@ -5,10 +5,10 @@ import { Chat } from '@/components/chat';
 import { getChatById, getMessagesByChatId } from '@/lib/db/queries';
 import { DataStreamHandler } from '@/components/data-stream-handler';
 import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
-import { Tables } from '@/supabase/types';
-import { Attachment, UIMessage } from 'ai';
+import type { Tables } from '@/supabase/types';
+import type { Attachment, UIMessage } from 'ai';
 import { auth } from '@/lib/supabase/server';
-import { VisibilityType } from '@/components/visibility-selector';
+import type { VisibilityType } from '@/components/visibility-selector';
 
 export default async function Page(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;

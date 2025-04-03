@@ -1,5 +1,5 @@
 import { createClient, auth, createServiceRoleClient } from '@/lib/supabase/server';
-import { NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 
 // API route for saving profile data
 export async function POST(req: NextRequest) {

@@ -1,5 +1,5 @@
 import { createClient, auth } from '@/lib/supabase/server';
-import { NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 
 // API route for saving workspace data
 export async function POST(req: NextRequest) {

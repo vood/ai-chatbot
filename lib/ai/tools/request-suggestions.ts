@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { DataStreamWriter, streamObject, tool } from 'ai';
+import { type DataStreamWriter, streamObject, tool } from 'ai';
 import { getDocumentById, saveSuggestions } from '@/lib/db/queries';
 import { generateUUID } from '@/lib/utils';
 import { myProvider } from '../providers';
-import { Tables } from '@/supabase/types';
+import type { Tables } from '@/supabase/types';
 
 interface RequestSuggestionsProps {
   user: { id?: string };

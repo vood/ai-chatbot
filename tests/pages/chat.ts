@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { chatModels } from '@/lib/ai/models';
-import { expect, Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
 export class ChatPage {
   constructor(private page: Page) {}

@@ -1,8 +1,8 @@
 import 'server-only';
 
 import { createClient, auth } from '@/lib/supabase/server';
-import type { Tables, TablesInsert } from '@/supabase/types';
-import { ArtifactKind } from '@/components/artifact';
+import type { Tables, } from '@/supabase/types';
+import type { ArtifactKind } from '@/components/artifact';
 import type {
   Chat,
   Message,

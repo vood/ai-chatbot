@@ -3,7 +3,7 @@ import { useSWRConfig } from 'swr';
 import { useCopyToClipboard } from 'usehooks-ts';
 import { useState, useRef } from 'react';
 
-import { Vote } from '@/lib/db/schema';
+import type { Vote } from '@/lib/db/schema';
 
 import { CopyIcon, SpeakerIcon, ThumbDownIcon, ThumbUpIcon } from './icons';
 import { Button } from './ui/button';

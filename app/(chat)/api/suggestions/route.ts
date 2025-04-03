@@ -1,5 +1,5 @@
 import { auth } from '@/lib/supabase/server';
-import { NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 
 import { getSuggestionsByDocumentId } from '@/lib/db/queries';
 

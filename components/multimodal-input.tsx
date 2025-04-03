@@ -1,6 +1,6 @@
 'use client';
 
-import type { Attachment, Message, UIMessage } from 'ai';
+import type { Attachment, UIMessage } from 'ai';
 import type { UseChatHelpers } from '@ai-sdk/react';
 import cx from 'classnames';
 import type React from 'react';

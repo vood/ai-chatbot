@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import { NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 
 /**
  * Auth callback route handler - handles redirects from email OTP and OAuth providers

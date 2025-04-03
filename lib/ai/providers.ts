@@ -3,7 +3,7 @@ import {
   extractReasoningMiddleware,
   wrapLanguageModel,
 } from 'ai';
-import { createOpenRouter, openrouter } from '@openrouter/ai-sdk-provider';
+import { openrouter } from '@openrouter/ai-sdk-provider';
 import { openai } from '@ai-sdk/openai';
 import { isTestEnvironment } from '../constants';
 import {

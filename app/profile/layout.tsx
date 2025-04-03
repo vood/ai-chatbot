@@ -2,7 +2,7 @@ import { AppSidebar } from '@/components/app-sidebar';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { auth } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 export default async function ProfileLayout({
   children,

@@ -1,6 +1,6 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { createServerClient, } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { User, createClient as baseCreateClient } from '@supabase/supabase-js'
+import { type User, createClient as baseCreateClient } from '@supabase/supabase-js'
 import { jwtDecode } from 'jwt-decode'
 // Make createClient async and await cookies()
 export async function createClient() {

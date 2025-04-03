@@ -1,5 +1,5 @@
-import { createClient, auth } from '@/lib/supabase/server';
-import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/supabase/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
 export async function POST(req: NextRequest) {
