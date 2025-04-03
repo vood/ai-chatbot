@@ -133,7 +133,7 @@ export default function AppsSettingsTab() {
             </div>
           </div>
 
-          <Button type="submit" disabled={isLoading} className="bg-[#18181b] hover:bg-[#18181b]/90">
+          <Button type="submit" disabled={isLoading}>
             {isLoading ? "Saving..." : "Save Settings"}
           </Button>
         </form>

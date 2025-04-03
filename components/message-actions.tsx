@@ -98,6 +98,7 @@ export function PureMessageActions({
                             chat_id: chatId,
                             message_id: message.id,
                             is_upvoted: true,
+                            type: 'up',
                           },
                         ];
                       },

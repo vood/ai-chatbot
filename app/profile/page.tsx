@@ -1,6 +1,5 @@
 import { Settings } from "lucide-react"
 import type { Metadata } from "next"
-import { Toaster } from "sonner"
 import ProfileTab from "./tabs/profile-tab"
 import ShortcutsTab from "./tabs/shortcuts-tab"
 import MyDataTab from "./tabs/my-data-tab"
@@ -25,30 +24,11 @@ export default async function ProfilePage({
 
   return (
     <div className="flex h-screen flex-col">
-      <Toaster position="top-center" />
-      <header className="flex h-14 items-center gap-4 border-b bg-background px-6">
+      <header className="flex h-16 items-center shrink-0 gap-4 border-b bg-background px-6 sticky top-0 z-10">
         <div className="flex items-center gap-2">
           <Settings className="h-6 w-6" />
           <h1 className="text-xl font-semibold">Settings</h1>
         </div>
-        <button className="ml-auto rounded-full p-2 hover:bg-muted">
-          <span className="sr-only">Close</span>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-4 w-4"
-          >
-            <path d="M18 6 6 18" />
-            <path d="m6 6 12 12" />
-          </svg>
-        </button>
       </header>
       <div className="flex flex-1">
         <nav className="w-64 border-r bg-muted/40">

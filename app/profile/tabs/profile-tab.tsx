@@ -12,20 +12,15 @@ import { Textarea } from "@/components/ui/textarea"
 import { Trash2, InfoIcon as InfoCircle, Loader2 } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { AvatarUpload } from "@/components/avatar-upload"
+import { createClient } from "@/lib/supabase/client"
 
 const profileFormSchema = z.object({
   name: z.string().min(1, {
     message: "Name is required.",
   }),
-  email: z
-    .string()
-    .email({
-      message: "Please enter a valid email address.",
-    })
-    .optional(),
   profile_context: z.string().max(1500).optional(),
   system_prompt_template: z.string().max(3000).optional(),
-  large_text_threshold: z.coerce.number().min(1000).max(50000).default(8000),
+  large_text_paste_threshold: z.coerce.number().min(1000).max(50000),
 })
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>
@@ -34,14 +29,13 @@ export default function ProfileTab() {
   const [isLoading, setIsLoading] = useState(false)
   const [isInitializing, setIsInitializing] = useState(true)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [profileImage, setProfileImage] = useState<string | undefined>(
-    "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-FprAmFzcfN5UuMoSan7zmdZxCEe71z.png",
-  )
+  const [profileImage, setProfileImage] = useState<string | undefined>()
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePath, setImagePath] = useState<string | undefined>()
 
   // Default values
   const defaultValues: ProfileFormValues = {
     name: "",
-    email: "",
     profile_context: "",
     system_prompt_template: `Today is {local_date}.
 
@@ -50,7 +44,7 @@ User info: "{profile_context}"
 {assistant}.
 
 {prompt}`,
-    large_text_threshold: 8000,
+    large_text_paste_threshold: 2000,
   }
 
   const form = useForm<ProfileFormValues>({
@@ -58,6 +52,26 @@ User info: "{profile_context}"
     defaultValues,
     mode: "onChange",
   })
+
+  // Log any input changes to debug issues
+  useEffect(() => {
+    const subscription = form.watch((value, { name, type }) => {
+      console.log(`Form field changed - Name: ${name}, Type: ${type}, Value:`, value);
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
+
+  // Log form errors whenever they change
+  useEffect(() => {
+    const subscription = form.watch(() => {
+      const errors = form.formState.errors;
+      if (Object.keys(errors).length > 0) {
+        console.log("Form validation errors:", errors);
+      }
+    });
+    
+    return () => subscription.unsubscribe();
+  }, [form]);
 
   // Load profile data when component mounts
   useEffect(() => {
@@ -75,16 +89,19 @@ User info: "{profile_context}"
         // Reset the form with the loaded values, falling back to defaults if needed
         form.reset({
           ...defaultValues,
-          name: data.name || defaultValues.name,
-          email: data.email || defaultValues.email,
+          name: data.display_name || defaultValues.name,
           profile_context: data.profile_context || defaultValues.profile_context,
           system_prompt_template: data.system_prompt_template || defaultValues.system_prompt_template,
-          large_text_threshold: data.large_text_threshold || defaultValues.large_text_threshold,
+          large_text_paste_threshold: data.large_text_paste_threshold || defaultValues.large_text_paste_threshold,
         })
 
-        // Set profile image if it exists
-        if (data.avatar_url) {
-          setProfileImage(data.avatar_url)
+        // Set profile image and path if they exist
+        if (data.image_url) {
+          setProfileImage(data.image_url)
+        }
+        
+        if (data.image_path) {
+          setImagePath(data.image_path)
         }
       } catch (error) {
         console.error("Error loading profile data:", error)
@@ -99,25 +116,130 @@ User info: "{profile_context}"
     loadProfile()
   }, [form])
 
+  // Advanced validation logging
+  useEffect(() => {
+    // Log validation status whenever form state changes
+    const subscription = form.formState.isSubmitSuccessful;
+    console.log("Form validation state:", {
+      isValid: form.formState.isValid,
+      isDirty: form.formState.isDirty,
+      isSubmitting: form.formState.isSubmitting,
+      isSubmitted: form.formState.isSubmitted,
+      isSubmitSuccessful: form.formState.isSubmitSuccessful,
+    });
+    
+    return () => {};
+  }, [form.formState]);
+  
+  // Create a wrapper for onSubmit to catch validation errors
+  const handleSubmit = form.handleSubmit(
+    (data) => {
+      console.log("Form validation passed, submitting data:", data);
+      onSubmit(data);
+    },
+    (errors) => {
+      console.error("Form validation failed:", errors);
+      toast.error("Form validation failed", {
+        description: "Please check the form for errors and try again."
+      });
+    }
+  );
+
   async function onSubmit(data: ProfileFormValues) {
+    console.log("Form submission data:", data);
     setIsLoading(true)
 
     try {
+      // If there's a new image file, upload it first
+      let uploadedImageUrl = profileImage
+      let uploadedImagePath = imagePath
+      
+      if (imageFile) {
+        try {
+          const supabase = createClient()
+          const { data: sessionData } = await supabase.auth.getSession()
+          
+          if (!sessionData?.session?.user) {
+            throw new Error("User not authenticated")
+          }
+          
+          // Generate a unique filename
+          const timestamp = Date.now()
+          const fileExt = imageFile.name.split('.').pop() || 'png'
+          const fileName = `${timestamp}.${fileExt}`
+          const filePath = `${sessionData.session.user.id}/${fileName}`
+          
+          // Upload the file
+          const { error: uploadError } = await supabase.storage
+            .from('profile_images')
+            .upload(filePath, imageFile, {
+              upsert: true
+            })
+            
+          if (uploadError) {
+            throw new Error(`Error uploading image: ${uploadError.message}`)
+          }
+          
+          // Get the public URL
+          const { data: { publicUrl } } = supabase.storage
+            .from('profile_images')
+            .getPublicUrl(filePath)
+            
+          // Delete the old image if exists and not the default one
+          if (imagePath && imagePath !== 'default.png' && !imagePath.includes('vercel-storage')) {
+            await supabase.storage
+              .from('profile_images')
+              .remove([imagePath])
+              .then(({ error }) => {
+                if (error) {
+                  console.warn("Failed to remove old profile image:", error)
+                }
+              })
+          }
+            
+          uploadedImageUrl = publicUrl
+          uploadedImagePath = filePath
+          
+          // Update the state with new values
+          setProfileImage(publicUrl)
+          setImagePath(filePath)
+          
+          // Clear the image file after successful upload
+          setImageFile(null)
+        } catch (uploadError) {
+          console.error("Error uploading image:", uploadError)
+          toast.error("Failed to upload profile image", {
+            description: "Your profile info will be saved, but the image upload failed."
+          })
+        }
+      }
+      
+      // Now save the profile data with the image URL
+      const requestBody = {
+        ...data,
+        display_name: data.name,
+        image_url: uploadedImageUrl,
+        image_path: uploadedImagePath,
+      };
+      
+      console.log("Sending profile update request:", requestBody);
+      
       const response = await fetch("/api/profile", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          ...data,
-          avatar_url: profileImage,
-        }),
+        body: JSON.stringify(requestBody),
       })
       
       if (!response.ok) {
         const errorData = await response.json()
+        console.error("Profile update response error:", errorData);
         throw new Error(errorData.error || "Failed to update profile")
       }
+      
+      const responseData = await response.json();
+      console.log("Profile update response:", responseData);
       
       toast.success("Profile updated", {
         description: "Your profile has been updated successfully.",
@@ -179,7 +301,7 @@ User info: "{profile_context}"
   return (
     <div className="space-y-8">
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        <form onSubmit={handleSubmit} className="space-y-8">
           <div className="flex items-center gap-4">
             <AvatarUpload
               initialImage={profileImage}
@@ -188,23 +310,35 @@ User info: "{profile_context}"
               onImageChange={(file) => {
                 if (file) {
                   console.log("Profile image changed:", file.name)
-                  // Here you would typically upload the file to your server/storage
+                  // Store the file for later upload
+                  setImageFile(file)
+                  
+                  // Preview the image
                   const reader = new FileReader()
                   reader.onload = (event) => {
                     if (event.target?.result) {
                       setProfileImage(event.target.result as string)
+                      // Move toast outside the render cycle
+                      setTimeout(() => {
+                        toast.info("Image selected", {
+                          description: "Your new profile picture will be uploaded when you save your profile."
+                        })
+                      }, 0)
                     }
                   }
                   reader.readAsDataURL(file)
-
-                  toast.success("Profile picture updated", {
-                    description: "Your new profile picture has been uploaded.",
-                  })
                 } else {
-                  setProfileImage(undefined)
-                  toast.success("Profile picture removed", {
-                    description: "Your profile picture has been removed.",
-                  })
+                  // Handle image removal - we'll use a default image
+                  const defaultImage = "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-FprAmFzcfN5UuMoSan7zmdZxCEe71z.png"
+                  setProfileImage(defaultImage)
+                  setImageFile(null)
+                  setImagePath("default.png")
+                  // Move toast outside the render cycle
+                  setTimeout(() => {
+                    toast.info("Profile picture removed", {
+                      description: "Your profile picture has been reset to default. Save to apply changes."
+                    })
+                  }, 0)
                 }
               }}
             />
@@ -220,20 +354,6 @@ User info: "{profile_context}"
                   </FormItem>
                 )}
               />
-              <div className="flex items-center text-sm text-muted-foreground">
-                <span className="flex items-center">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    className="w-4 h-4 mr-1"
-                  >
-                    <path d="M3 4a2 2 0 00-2 2v1.161l8.441 4.221a1.25 1.25 0 001.118 0L19 7.162V6a2 2 0 00-2-2H3z" />
-                    <path d="M19 8.839l-7.77 3.885a2.75 2.75 0 01-2.46 0L1 8.839V14a2 2 0 002 2h14a2 2 0 002-2V8.839z" />
-                  </svg>
-                  {form.watch("email")}
-                </span>
-              </div>
             </div>
           </div>
 
@@ -287,7 +407,7 @@ User info: "{profile_context}"
           <div className="space-y-4">
             <FormField
               control={form.control}
-              name="large_text_threshold"
+              name="large_text_paste_threshold"
               render={({ field }) => (
                 <FormItem>
                   <div className="flex items-center gap-2">
@@ -305,7 +425,7 @@ User info: "{profile_context}"
             />
           </div>
 
-          <Button type="submit" disabled={isLoading} className="bg-[#18181b] hover:bg-[#18181b]/90">
+          <Button type="submit" disabled={isLoading}>
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

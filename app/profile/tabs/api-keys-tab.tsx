@@ -29,8 +29,7 @@ const apiKeysFormSchema = z.object({
   mistral_api_key: z.string().optional(),
   groq_api_key: z.string().optional(),
   perplexity_api_key: z.string().optional(),
-  openrouter_api_key: z.string().optional(),
-  use_bedrock: z.boolean(),
+  openrouter_api_key: z.string().optional()
 })
 
 type ApiKeysFormValues = z.infer<typeof apiKeysFormSchema>
@@ -56,8 +55,7 @@ export default function ApiKeysTab() {
     mistral_api_key: "",
     groq_api_key: "",
     perplexity_api_key: "",
-    openrouter_api_key: "",
-    use_bedrock: false,
+    openrouter_api_key: ""
   }
 
   const form = useForm<ApiKeysFormValues>({
@@ -411,25 +409,6 @@ export default function ApiKeysTab() {
                       {form.formState.errors.openrouter_api_key && (
                         <p className="text-sm text-red-500">{form.formState.errors.openrouter_api_key.message}</p>
                       )}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-
-                <AccordionItem value="aws">
-                  <AccordionTrigger className="text-lg font-medium">AWS Bedrock</AccordionTrigger>
-                  <AccordionContent className="space-y-4 pt-4">
-                    <div className="flex flex-row items-center justify-between rounded-lg border p-4">
-                      <div className="space-y-0.5">
-                        <label className="text-base font-medium">Use AWS Bedrock</label>
-                        <p className="text-sm text-muted-foreground">
-                          Enable to use AWS Bedrock for AI models. AWS credentials should be configured in your
-                          environment.
-                        </p>
-                      </div>
-                      <Switch 
-                        checked={form.watch("use_bedrock")} 
-                        onCheckedChange={(checked) => form.setValue("use_bedrock", checked)}
-                      />
                     </div>
                   </AccordionContent>
                 </AccordionItem>

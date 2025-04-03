@@ -49,8 +49,7 @@ export async function POST(req: NextRequest) {
         mistral_api_key: data.mistral_api_key,
         groq_api_key: data.groq_api_key,
         perplexity_api_key: data.perplexity_api_key,
-        openrouter_api_key: data.openrouter_api_key,
-        use_bedrock: data.use_bedrock,
+        openrouter_api_key: data.openrouter_api_key
       })
       .eq('id', workspaceId);
 
@@ -98,8 +97,7 @@ export async function GET() {
         mistral_api_key,
         groq_api_key,
         perplexity_api_key,
-        openrouter_api_key,
-        use_bedrock
+        openrouter_api_key
       `)
       .eq('id', workspaceId)
       .single();

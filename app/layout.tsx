@@ -63,6 +63,7 @@ export default async function RootLayout({
       className={`${geist.variable} ${geistMono.variable}`}
     >
       <head>
+        <script src="https://cdn.jsdelivr.net/pyodide/v0.27.4/full/pyodide.js" />
         <script
           dangerouslySetInnerHTML={{
             __html: THEME_COLOR_SCRIPT,

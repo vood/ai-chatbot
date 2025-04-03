@@ -92,7 +92,7 @@ export default function TeamTab() {
                 </FormItem>
               )}
             />
-            <Button type="submit" disabled={isLoading} className="bg-[#18181b] hover:bg-[#18181b]/90">
+            <Button type="submit" disabled={isLoading}>
               Invite
             </Button>
           </form>

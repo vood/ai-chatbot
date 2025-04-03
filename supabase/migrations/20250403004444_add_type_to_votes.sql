@@ -1,0 +1,1 @@
+ALTER TABLE votes add column type text;

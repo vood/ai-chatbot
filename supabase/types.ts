@@ -1847,16 +1847,19 @@ export type Database = {
           chat_id: string
           is_upvoted: boolean
           message_id: string
+          type: string | null
         }
         Insert: {
           chat_id: string
           is_upvoted: boolean
           message_id: string
+          type?: string | null
         }
         Update: {
           chat_id?: string
           is_upvoted?: boolean
           message_id?: string
+          type?: string | null
         }
         Relationships: [
           {

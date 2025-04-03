@@ -66,7 +66,7 @@ export default function ShortcutsTab() {
             control={form.control}
             name="send_message_on_enter"
             render={({ field }) => (
-              <FormItem className="flex flex-row items-center justify-between space-y-0">
+              <FormItem className="flex w-full flex-row items-center justify-between space-y-0">
                 <FormLabel className="text-base">Send message on ⌘+Enter</FormLabel>
                 <FormControl>
                   <Switch checked={field.value} onCheckedChange={field.onChange} />
@@ -139,7 +139,7 @@ export default function ShortcutsTab() {
           >
             Reset to defaults
           </Button>
-          <Button type="submit" disabled={isLoading} className="w-[200px] bg-[#18181b] hover:bg-[#18181b]/90">
+          <Button type="submit" disabled={isLoading} className="w-[200px]">
             {isLoading ? "Saving..." : "Save Shortcuts"}
           </Button>
         </div>

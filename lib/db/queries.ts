@@ -3,7 +3,7 @@ import 'server-only';
 import { createClient, auth } from '@/lib/supabase/server';
 import type { Tables, TablesInsert } from '@/supabase/types';
 import { ArtifactKind } from '@/components/artifact';
-import type { Chat, Message, Document, Suggestion, ChatInsert, MessageInsert, DocumentInsert, SuggestionInsert } from '@/lib/db/schema';
+import type { Chat, Message, Document, Suggestion, ChatInsert, MessageInsert, DocumentInsert, SuggestionInsert, Vote } from '@/lib/db/schema';
 
 // Define concrete types based on schema
 
@@ -470,3 +470,57 @@ export async function getCurrentUserProfile() {
       throw error;
   }
 }
+
+export async function getVotesByChatId({ id }: { id: string }): Promise<Vote[]> {
+  const supabase = await createClient();
+  try {
+    const { data, error } = await supabase
+      .from('votes')
+      .select('*')
+      .eq('chat_id', id);
+
+    if (error) {
+      console.error('Failed to get votes by chat id from database:', error);
+      throw error;
+    }
+    return data || [];  
+  } catch (error) {
+    console.error('Error in getVotesByChatId function:', error);
+    throw error;
+  }
+}
+
+
+export async function voteMessage({
+  chat_id,
+  message_id,
+  type,
+}: {
+  chat_id: string;
+  message_id: string;
+  type: 'up' | 'down';
+}) {
+  const supabase = await createClient();
+  try {
+    const { error } = await supabase
+      .from('votes')
+      .upsert({
+        chat_id: chat_id,
+        message_id: message_id,
+        type,
+        is_upvoted: type === 'up',
+      }, {
+        onConflict: 'chat_id,message_id',
+      });
+
+    if (error) {
+      console.error('Failed to vote message in database:', error);
+      throw error;
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('Error in voteMessage function:', error);
+    throw error;
+  }
+}
+

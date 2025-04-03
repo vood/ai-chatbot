@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
         updated_at: new Date().toISOString(),
         // Add workspace fields directly
         name: data.name,
-        logo_url: data.logo_url,
+        image_path: data.image_path,
       })
       .eq('id', workspaceId);
 
@@ -71,7 +71,7 @@ export async function GET() {
       .from('workspaces')
       .select(`
         name,
-        logo_url
+        image_path
       `)
       .eq('id', workspaceId)
       .single();

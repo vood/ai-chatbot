@@ -55,8 +55,8 @@ export default function WorkspaceSettingsTab() {
         })
 
         // Set workspace image if it exists
-        if (data.logo_url) {
-          setWorkspaceImage(data.logo_url)
+        if (data.image_path) {
+          setWorkspaceImage(data.image_path)
         }
       } catch (error) {
         console.error("Error loading workspace data:", error)
@@ -82,7 +82,7 @@ export default function WorkspaceSettingsTab() {
         },
         body: JSON.stringify({
           ...data,
-          logo_url: workspaceImage,
+          image_path: workspaceImage,
         }),
       })
       
@@ -191,7 +191,7 @@ export default function WorkspaceSettingsTab() {
                 </FormItem>
               )}
             />
-            <Button type="submit" disabled={isLoading} className="bg-[#18181b] hover:bg-[#18181b]/90">
+            <Button type="submit" disabled={isLoading}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

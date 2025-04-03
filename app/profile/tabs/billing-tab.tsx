@@ -15,7 +15,7 @@ export default function BillingTab() {
         <p className="text-base mb-6">Upgrade to Ultimate to get access to OpenAI o1-preview and Claude 3 Opus</p>
 
         <Button
-          className="bg-[#7c3aed] hover:bg-[#6d28d9] text-white flex items-center gap-2"
+          className="flex items-center gap-2"
           onClick={() => window.open("#", "_blank")}
         >
           Manage Subscription
