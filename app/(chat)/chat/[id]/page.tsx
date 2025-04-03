@@ -35,7 +35,9 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
     id,
   });
 
-  function convertToUIMessages(messages: Array<Tables<'messages'>>): Array<UIMessage> {
+  function convertToUIMessages(
+    messages: Array<Tables<'messages'>>,
+  ): Array<UIMessage> {
     return messages.map((message) => ({
       id: message.id,
       parts: message.parts as UIMessage['parts'],

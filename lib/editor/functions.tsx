@@ -1,14 +1,16 @@
 'use client';
 
-import { defaultMarkdownSerializer } from 'prosemirror-markdown';
+import { GFMExtension } from 'prosemirror-remark';
 import { DOMParser, type Node } from 'prosemirror-model';
 import { Decoration, DecorationSet, type EditorView } from 'prosemirror-view';
 import { renderToString } from 'react-dom/server';
 
 import { Markdown } from '@/components/markdown';
+import { ProseMirrorUnified } from 'prosemirror-unified';
 
 import { documentSchema } from './config';
 import { createSuggestionWidget, type UISuggestion } from './suggestions';
+import { pmu } from '@/components/text-editor';
 
 export const buildDocumentFromContent = (content: string) => {
   const parser = DOMParser.fromSchema(documentSchema);
@@ -19,7 +21,7 @@ export const buildDocumentFromContent = (content: string) => {
 };
 
 export const buildContentFromDocument = (document: Node) => {
-  return defaultMarkdownSerializer.serialize(document);
+  return pmu.serialize(document);
 };
 
 export const createDecorations = (

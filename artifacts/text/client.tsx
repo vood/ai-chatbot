@@ -6,13 +6,16 @@ import {
   ClockRewind,
   CopyIcon,
   MessageIcon,
+  PDFIcon,
   PenIcon,
   RedoIcon,
   UndoIcon,
 } from '@/components/icons';
-import { Suggestion } from '@/lib/db/schema';
+import type { Suggestion } from '@/lib/db/schema';
+import { jsPDF } from 'jspdf';
 import { toast } from 'sonner';
 import { getSuggestions } from '../actions';
+import { ScaleIcon } from 'lucide-react';
 
 interface TextArtifactMetadata {
   suggestions: Array<Suggestion>;
@@ -90,9 +93,7 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
             onSaveContent={onSaveContent}
           />
 
-          {metadata &&
-          metadata.suggestions &&
-          metadata.suggestions.length > 0 ? (
+          {metadata?.suggestions && metadata.suggestions.length > 0 ? (
             <div className="md:hidden h-dvh w-12 shrink-0" />
           ) : null}
         </div>
@@ -143,6 +144,15 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
       },
     },
     {
+      icon: <PDFIcon size={18} />,
+      description: 'Download as PDF',
+      onClick: ({ content }) => {
+        const pdf = new jsPDF();
+        pdf.text(content, 10, 10);
+        pdf.save('document.pdf');
+      },
+    },
+    {
       icon: <CopyIcon size={18} />,
       description: 'Copy to clipboard',
       onClick: ({ content }) => {
@@ -171,6 +181,17 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
           role: 'user',
           content:
             'Please add suggestions you have that could improve the writing.',
+        });
+      },
+    },
+    {
+      icon: <ScaleIcon size={18} />,
+      description: 'Request legal review',
+      onClick: ({ appendMessage }) => {
+        appendMessage({
+          role: 'user',
+          content:
+            "Please add legal review, find any potential issues, and ensure the document is compliant with all relevant laws and regulations. Provide suggestions only, don't modify the document.",
         });
       },
     },

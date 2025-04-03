@@ -4,6 +4,7 @@ import type { ArtifactKind } from './artifact';
 import { FileIcon, LoaderIcon, MessageIcon, PencilEditIcon } from './icons';
 import { toast } from 'sonner';
 import { useArtifact } from '@/hooks/use-artifact';
+import { AlertTriangleIcon } from 'lucide-react';
 
 const getActionText = (
   type: 'create' | 'update' | 'request-suggestions',
@@ -25,8 +26,19 @@ const getActionText = (
 
 interface DocumentToolResultProps {
   type: 'create' | 'update' | 'request-suggestions';
-  result: { id: string; title: string; kind: ArtifactKind };
+  result: { id: string; title: string; kind: ArtifactKind; error?: string };
   isReadonly: boolean;
+}
+
+function ToolResultErrorMessage({ error }: { error: string }) {
+  return (
+    <div className="bg-red-50 dark:bg-red-950 border border-red-300 dark:border-red-800 py-2 px-3 rounded-xl w-fit flex flex-row gap-3 items-start">
+      <div className="text-red-500 dark:text-red-400 mt-1">
+        <AlertTriangleIcon size={16} />
+      </div>
+      <div className="text-red-700 dark:text-red-300 text-left">{error}</div>
+    </div>
+  );
 }
 
 function PureDocumentToolResult({
@@ -35,6 +47,10 @@ function PureDocumentToolResult({
   isReadonly,
 }: DocumentToolResultProps) {
   const { setArtifact } = useArtifact();
+
+  if (result.error) {
+    return <ToolResultErrorMessage error={result.error} />;
+  }
 
   return (
     <button

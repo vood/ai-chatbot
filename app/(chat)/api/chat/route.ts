@@ -1,6 +1,7 @@
 import {
   UIMessage,
   appendResponseMessages,
+  convertToCoreMessages,
   createDataStreamResponse,
   smoothStream,
   streamText,
@@ -25,7 +26,8 @@ import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
 import { getWeather } from '@/lib/ai/tools/get-weather';
 import { isProductionEnvironment } from '@/lib/constants';
 import { myProvider } from '@/lib/ai/providers';
-import { Json } from '@/supabase/types';
+import type { Json } from '@/supabase/types';
+import webSearch from '@/lib/ai/tools/web-search';
 
 export const maxDuration = 60;
 
@@ -60,7 +62,22 @@ export async function POST(request: Request) {
         message: userMessage,
       });
 
-      await saveChat({ id, name: title, userId: user.id, workspace_id: user.current_workspace, model: selectedChatModel, prompt: '', context_length: 1000, embeddings_provider: 'openai', include_profile_context: true, include_workspace_instructions: true, temperature: 0.5, assistant_id: null, folder_id: null, sharing: 'private' });
+      await saveChat({
+        id,
+        name: title,
+        userId: user.id,
+        workspace_id: user.current_workspace,
+        model: selectedChatModel,
+        prompt: '',
+        context_length: 1000,
+        embeddings_provider: 'openai',
+        include_profile_context: true,
+        include_workspace_instructions: true,
+        temperature: 0.5,
+        assistant_id: null,
+        folder_id: null,
+        sharing: 'private',
+      });
     } else {
       if (chat.user_id !== user.id) {
         return new Response('Unauthorized', { status: 401 });
@@ -74,7 +91,8 @@ export async function POST(request: Request) {
           id: userMessage.id,
           role: 'user',
           parts: userMessage.parts as unknown as Json,
-          attachments: (userMessage.experimental_attachments ?? []) as unknown as Json,
+          attachments: (userMessage.experimental_attachments ??
+            []) as unknown as Json,
           created_at: new Date().toISOString(),
           content: userMessage.content,
           image_paths: [],
@@ -91,17 +109,15 @@ export async function POST(request: Request) {
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
           system: systemPrompt({ selectedChatModel }),
-          messages,
+          messages: convertToCoreMessages(messages),
           maxSteps: 5,
-          experimental_activeTools:
-            selectedChatModel === 'chat-model-reasoning'
-              ? []
-              : [
-                  'getWeather',
-                  'createDocument',
-                  'updateDocument',
-                  'requestSuggestions',
-                ],
+          experimental_activeTools: [
+            'getWeather',
+            'createDocument',
+            'updateDocument',
+            'requestSuggestions',
+            'webSearch',
+          ],
           experimental_transform: smoothStream({ chunking: 'word' }),
           experimental_generateMessageId: generateUUID,
           tools: {
@@ -112,6 +128,7 @@ export async function POST(request: Request) {
               user: user,
               dataStream,
             }),
+            webSearch: webSearch,
           },
           onFinish: async ({ response }) => {
             if (user.id) {
@@ -138,7 +155,8 @@ export async function POST(request: Request) {
                       chat_id: id,
                       role: assistantMessage.role,
                       parts: assistantMessage.parts as Json,
-                      attachments: (assistantMessage.experimental_attachments ?? []) as unknown as Json,
+                      attachments: (assistantMessage.experimental_attachments ??
+                        []) as unknown as Json,
                       created_at: new Date().toISOString(),
                       content: assistantMessage.content,
                       image_paths: [],

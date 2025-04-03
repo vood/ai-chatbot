@@ -31,7 +31,7 @@ export const myProvider = isTestEnvironment
         }),
         'chat-websearch': openrouter('anthropic/claude-3.7-sonnet:search'),
         'title-model': openrouter('anthropic/claude-3.5-haiku'),
-        'artifact-model': openrouter('anthropic/claude-3.5-haiku'),
+        'artifact-model': openrouter('anthropic/claude-3.7-sonnet'),
       },
       imageModels: {
         'small-model': openai.image('dall-e-3'),

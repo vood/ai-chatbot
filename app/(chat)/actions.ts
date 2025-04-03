@@ -1,6 +1,7 @@
 'use server';
 
-import { generateText, Message } from 'ai';
+import { generateText } from 'ai';
+import type { Message } from 'ai';
 import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 
@@ -8,13 +9,31 @@ import {
   deleteMessagesByChatIdAfterTimestamp,
   getMessageById,
   updateChatSharingById,
+  getCurrentUserProfile,
 } from '@/lib/db/queries';
-import { VisibilityType } from '@/components/visibility-selector';
+import type { VisibilityType } from '@/components/visibility-selector';
 import { myProvider } from '@/lib/ai/providers';
 
 export async function saveChatModelAsCookie(model: string) {
   const cookieStore = await cookies();
   cookieStore.set('chat-model', model);
+}
+
+// Get the current user's display name with fallback
+export async function getUserDisplayName(): Promise<{
+  displayName: string;
+  isLoggedIn: boolean;
+}> {
+  try {
+    const profile = await getCurrentUserProfile();
+    return {
+      displayName: profile?.display_name || 'there',
+      isLoggedIn: !!profile,
+    };
+  } catch (error) {
+    console.error('Error getting user display name:', error);
+    return { displayName: 'there', isLoggedIn: false };
+  }
 }
 
 export async function generateTitleFromUserMessage({

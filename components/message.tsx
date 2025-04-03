@@ -19,6 +19,7 @@ import { MessageEditor } from './message-editor';
 import { DocumentPreview } from './document-preview';
 import { MessageReasoning } from './message-reasoning';
 import { UseChatHelpers } from '@ai-sdk/react';
+import SearchResults from './search-results';
 
 const PurePreviewMessage = ({
   chatId,
@@ -157,10 +158,14 @@ const PurePreviewMessage = ({
                     <div
                       key={toolCallId}
                       className={cx({
-                        skeleton: ['getWeather'].includes(toolName),
+                        skeleton: ['getWeather', 'webSearch'].includes(
+                          toolName,
+                        ),
                       })}
                     >
-                      {toolName === 'getWeather' ? (
+                      {toolName === 'webSearch' ? (
+                        <SearchResults />
+                      ) : toolName === 'getWeather' ? (
                         <Weather />
                       ) : toolName === 'createDocument' ? (
                         <DocumentPreview isReadonly={isReadonly} args={args} />
@@ -186,7 +191,9 @@ const PurePreviewMessage = ({
 
                   return (
                     <div key={toolCallId}>
-                      {toolName === 'getWeather' ? (
+                      {toolName === 'webSearch' ? (
+                        <SearchResults results={result} />
+                      ) : toolName === 'getWeather' ? (
                         <Weather weatherAtLocation={result} />
                       ) : toolName === 'createDocument' ? (
                         <DocumentPreview

@@ -15,7 +15,10 @@ export const requestSuggestions = ({
   dataStream,
 }: RequestSuggestionsProps) =>
   tool({
-    description: 'Request suggestions for a document',
+    description: `Request suggestions for a document.
+
+The content of the result must not be used as a document.
+    `,
     parameters: z.object({
       documentId: z
         .string()
@@ -31,7 +34,10 @@ export const requestSuggestions = ({
       }
 
       const suggestions: Array<
-        Omit<Tables<'suggestions'>, 'user_id' | 'created_at' | 'document_created_at'>
+        Omit<
+          Tables<'suggestions'>,
+          'user_id' | 'created_at' | 'document_created_at'
+        >
       > = [];
 
       const { elementStream } = streamObject({

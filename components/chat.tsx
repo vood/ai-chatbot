@@ -13,6 +13,7 @@ import { Messages } from './messages';
 import { VisibilityType } from './visibility-selector';
 import { useArtifactSelector } from '@/hooks/use-artifact';
 import { toast } from 'sonner';
+import { Overview } from './overview';
 
 export function Chat({
   id,
@@ -86,6 +87,7 @@ export function Chat({
         <form className="flex mx-auto px-4 bg-background pb-4 md:pb-6 gap-2 w-full md:max-w-3xl">
           {!isReadonly && (
             <MultimodalInput
+              selectedChatModel={selectedChatModel}
               chatId={id}
               input={input}
               setInput={setInput}

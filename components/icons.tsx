@@ -1189,3 +1189,20 @@ export const SpeakerIcon = ({ size = 16 }: { size?: number }) => (
     />
   </svg>
 );
+
+export const PDFIcon = ({ size = 16 }: { size?: number }) => (
+  <svg
+    height={size}
+    width={size}
+    strokeLinejoin="round"
+    viewBox="0 0 16 16"
+    style={{ color: 'currentcolor' }}
+  >
+    <path
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="M3 1C2.44772 1 2 1.44772 2 2V14C2 14.5523 2.44772 15 3 15H13C13.5523 15 14 14.5523 14 14V5.41421C14 5.149 13.8946 4.89464 13.7071 4.70711L10.2929 1.29289C10.1054 1.10536 9.851 1 9.58579 1H3ZM3.5 2.5V13.5H12.5V6H9.5C9.22386 6 9 5.77614 9 5.5V2.5H3.5ZM10.5 2.5V4.5H12.5L10.5 2.5ZM4.5 8.5V7.5H11.5V8.5H4.5ZM4.5 10.5V9.5H11.5V10.5H4.5ZM4.5 12.5V11.5H8.5V12.5H4.5Z"
+      fill="currentColor"
+    />
+  </svg>
+);

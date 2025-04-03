@@ -1,16 +1,30 @@
-"use client"
+'use client';
 
-import { useState } from "react"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import * as z from "zod"
-import { toast } from "sonner"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { Switch } from "@/components/ui/switch"
-import { Textarea } from "@/components/ui/textarea"
-import { Slider } from "@/components/ui/slider"
+import { useState } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import * as z from 'zod';
+import { toast } from 'sonner';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
+import { Slider } from '@/components/ui/slider';
 
 const preferencesFormSchema = z.object({
   send_message_on_enter: z.boolean().default(true),
@@ -18,46 +32,47 @@ const preferencesFormSchema = z.object({
   workspace_migration_enabled: z.boolean().default(false),
   system_prompt_template: z.string().optional(),
   large_text_paste_threshold: z.number().min(0).max(100000).default(5000),
-})
+});
 
-type PreferencesFormValues = z.infer<typeof preferencesFormSchema>
+type PreferencesFormValues = z.infer<typeof preferencesFormSchema>;
 
 export default function PreferencesTab() {
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(false);
 
   // This would normally be populated from your API/database
   const defaultValues: Partial<PreferencesFormValues> = {
     send_message_on_enter: true,
     experimental_code_editor: false,
     workspace_migration_enabled: false,
-    system_prompt_template: "You are a helpful assistant.",
+    system_prompt_template: 'You are a helpful assistant.',
     large_text_paste_threshold: 5000,
-  }
+  };
 
   const form = useForm<PreferencesFormValues>({
     resolver: zodResolver(preferencesFormSchema),
     defaultValues,
-    mode: "onChange",
-  })
+    mode: 'onChange',
+  });
 
   function onSubmit(data: PreferencesFormValues) {
-    setIsLoading(true)
+    setIsLoading(true);
 
     // Simulate API call
     setTimeout(() => {
-      console.log(data)
-      setIsLoading(false)
-      toast.success("Preferences updated", {
-        description: "Your preferences have been updated successfully.",
-      })
-    }, 1000)
+      setIsLoading(false);
+      toast.success('Preferences updated', {
+        description: 'Your preferences have been updated successfully.',
+      });
+    }, 1000);
   }
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Preferences</CardTitle>
-        <CardDescription>Customize your experience with these preference settings.</CardDescription>
+        <CardDescription>
+          Customize your experience with these preference settings.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -69,11 +84,19 @@ export default function PreferencesTab() {
                 render={({ field }) => (
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                     <div className="space-y-0.5">
-                      <FormLabel className="text-base">Send Message on Enter</FormLabel>
-                      <FormDescription>Press Enter to send messages instead of using Shift+Enter.</FormDescription>
+                      <FormLabel className="text-base">
+                        Send Message on Enter
+                      </FormLabel>
+                      <FormDescription>
+                        Press Enter to send messages instead of using
+                        Shift+Enter.
+                      </FormDescription>
                     </div>
                     <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
                     </FormControl>
                   </FormItem>
                 )}
@@ -85,11 +108,18 @@ export default function PreferencesTab() {
                 render={({ field }) => (
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                     <div className="space-y-0.5">
-                      <FormLabel className="text-base">Experimental Code Editor</FormLabel>
-                      <FormDescription>Enable experimental code editor features.</FormDescription>
+                      <FormLabel className="text-base">
+                        Experimental Code Editor
+                      </FormLabel>
+                      <FormDescription>
+                        Enable experimental code editor features.
+                      </FormDescription>
                     </div>
                     <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
                     </FormControl>
                   </FormItem>
                 )}
@@ -101,11 +131,18 @@ export default function PreferencesTab() {
                 render={({ field }) => (
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                     <div className="space-y-0.5">
-                      <FormLabel className="text-base">Workspace Migration</FormLabel>
-                      <FormDescription>Enable workspace migration features.</FormDescription>
+                      <FormLabel className="text-base">
+                        Workspace Migration
+                      </FormLabel>
+                      <FormDescription>
+                        Enable workspace migration features.
+                      </FormDescription>
                     </div>
                     <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
                     </FormControl>
                   </FormItem>
                 )}
@@ -125,7 +162,9 @@ export default function PreferencesTab() {
                       {...field}
                     />
                   </FormControl>
-                  <FormDescription>Default system prompt template to use for new conversations.</FormDescription>
+                  <FormDescription>
+                    Default system prompt template to use for new conversations.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -136,7 +175,9 @@ export default function PreferencesTab() {
               name="large_text_paste_threshold"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Large Text Paste Threshold ({field.value} characters)</FormLabel>
+                  <FormLabel>
+                    Large Text Paste Threshold ({field.value} characters)
+                  </FormLabel>
                   <FormControl>
                     <Slider
                       min={1000}
@@ -146,19 +187,21 @@ export default function PreferencesTab() {
                       onValueChange={(vals) => field.onChange(vals[0])}
                     />
                   </FormControl>
-                  <FormDescription>Character threshold for showing the large text paste warning.</FormDescription>
+                  <FormDescription>
+                    Character threshold for showing the large text paste
+                    warning.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Saving..." : "Save Preferences"}
+              {isLoading ? 'Saving...' : 'Save Preferences'}
             </Button>
           </form>
         </Form>
       </CardContent>
     </Card>
-  )
+  );
 }
-

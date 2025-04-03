@@ -1,6 +1,7 @@
 'use client';
 
 import type { Attachment, Message, UIMessage } from 'ai';
+import type { UseChatHelpers } from '@ai-sdk/react';
 import cx from 'classnames';
 import type React from 'react';
 import {
@@ -16,17 +17,24 @@ import {
 import { toast } from 'sonner';
 import { useLocalStorage, useWindowSize } from 'usehooks-ts';
 
-import { ArrowUpIcon, PaperclipIcon, StopIcon } from './icons';
+import {
+  ArrowUpIcon,
+  PaperclipIcon,
+  StopIcon,
+  GlobeIcon,
+  ImageIcon,
+} from './icons';
+import { ModelSelector } from './model-selector';
 import { PreviewAttachment } from './preview-attachment';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { SuggestedActions } from './suggested-actions';
 import equal from 'fast-deep-equal';
-import { UseChatHelpers } from '@ai-sdk/react';
 
 function PureMultimodalInput({
   chatId,
   input,
+  selectedChatModel,
   setInput,
   status,
   stop,
@@ -38,6 +46,7 @@ function PureMultimodalInput({
   handleSubmit,
   className,
 }: {
+  selectedChatModel: string;
   chatId: string;
   input: UseChatHelpers['input'];
   setInput: UseChatHelpers['setInput'];
@@ -179,6 +188,9 @@ function PureMultimodalInput({
     [setAttachments],
   );
 
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+  const [imageGenEnabled, setImageGenEnabled] = useState(false);
+
   return (
     <div className="relative w-full flex flex-col gap-4">
       {messages.length === 0 &&
@@ -226,7 +238,7 @@ function PureMultimodalInput({
         value={input}
         onChange={handleInput}
         className={cx(
-          'min-h-[24px] max-h-[calc(75dvh)] overflow-hidden resize-none rounded-2xl !text-base bg-muted pb-10 dark:border-zinc-700',
+          'min-h-[24px] max-h-[calc(75dvh)] overflow-hidden resize-none rounded-2xl !text-base pb-10 dark:border-zinc-700',
           className,
         )}
         rows={2}
@@ -248,20 +260,40 @@ function PureMultimodalInput({
         }}
       />
 
-      <div className="absolute bottom-0 p-2 w-fit flex flex-row justify-start">
-        <AttachmentsButton fileInputRef={fileInputRef} status={status} />
-      </div>
-
-      <div className="absolute bottom-0 right-0 p-2 w-fit flex flex-row justify-end">
-        {status === 'submitted' ? (
-          <StopButton stop={stop} setMessages={setMessages} />
-        ) : (
-          <SendButton
-            input={input}
-            submitForm={submitForm}
-            uploadQueue={uploadQueue}
+      <div className="absolute bottom-0 p-2 w-full flex flex-row items-center justify-between">
+        <div className="flex items-center gap-2">
+          <AttachmentsButton fileInputRef={fileInputRef} status={status} />
+          <ModelSelector
+            selectedModelId={selectedChatModel}
+            className="min-w-[100px] text-xs border border-zinc-200 dark:border-zinc-700"
           />
-        )}
+          <FeatureToggleButton
+            icon={<GlobeIcon size={14} />}
+            isActive={webSearchEnabled}
+            onClick={() => setWebSearchEnabled(!webSearchEnabled)}
+            tooltip="Toggle web search"
+            disabled={status !== 'ready'}
+          />
+          <FeatureToggleButton
+            icon={<ImageIcon size={14} />}
+            isActive={imageGenEnabled}
+            onClick={() => setImageGenEnabled(!imageGenEnabled)}
+            tooltip="Toggle image generation"
+            disabled={status !== 'ready'}
+          />
+        </div>
+
+        <div>
+          {status === 'submitted' ? (
+            <StopButton stop={stop} setMessages={setMessages} />
+          ) : (
+            <SendButton
+              input={input}
+              submitForm={submitForm}
+              uploadQueue={uploadQueue}
+            />
+          )}
+        </div>
       </div>
     </div>
   );
@@ -270,6 +302,8 @@ function PureMultimodalInput({
 export const MultimodalInput = memo(
   PureMultimodalInput,
   (prevProps, nextProps) => {
+    if (prevProps.selectedChatModel !== nextProps.selectedChatModel)
+      return false;
     if (prevProps.input !== nextProps.input) return false;
     if (prevProps.status !== nextProps.status) return false;
     if (!equal(prevProps.attachments, nextProps.attachments)) return false;
@@ -357,3 +391,38 @@ const SendButton = memo(PureSendButton, (prevProps, nextProps) => {
   if (prevProps.input !== nextProps.input) return false;
   return true;
 });
+
+function PureFeatureToggleButton({
+  icon,
+  isActive,
+  onClick,
+  tooltip,
+  disabled,
+}: {
+  icon: React.ReactNode;
+  isActive: boolean;
+  onClick: () => void;
+  tooltip: string;
+  disabled: boolean;
+}) {
+  return (
+    <Button
+      className={`rounded-md p-2 h-8 transition-colors border ${
+        isActive
+          ? 'bg-primary/10 text-primary border-primary/20'
+          : 'bg-transparent border-zinc-200 dark:border-zinc-700'
+      }`}
+      onClick={(event) => {
+        event.preventDefault();
+        onClick();
+      }}
+      disabled={disabled}
+      variant="ghost"
+      title={tooltip}
+    >
+      {icon}
+    </Button>
+  );
+}
+
+const FeatureToggleButton = memo(PureFeatureToggleButton);
