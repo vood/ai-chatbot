@@ -1,10 +1,11 @@
 import type { Message } from 'ai';
 import { useSWRConfig } from 'swr';
 import { useCopyToClipboard } from 'usehooks-ts';
+import { useState, useRef } from 'react';
 
 import { Vote } from '@/lib/db/schema';
 
-import { CopyIcon, ThumbDownIcon, ThumbUpIcon } from './icons';
+import { CopyIcon, SpeakerIcon, ThumbDownIcon, ThumbUpIcon } from './icons';
 import { Button } from './ui/button';
 import {
   Tooltip,
@@ -29,9 +30,85 @@ export function PureMessageActions({
 }) {
   const { mutate } = useSWRConfig();
   const [_, copyToClipboard] = useCopyToClipboard();
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   if (isLoading) return null;
   if (message.role === 'user') return null;
+
+  const getMessageText = () => {
+    return message.parts
+      ?.filter((part) => part.type === 'text')
+      .map((part) => part.text)
+      .join('\n')
+      .trim();
+  };
+
+  const handlePlayAudio = async () => {
+    try {
+      const textContent = getMessageText();
+      
+      if (!textContent) {
+        toast.error("There's no text to play!");
+        return;
+      }
+
+      // If already playing, stop it
+      if (isPlayingAudio && audioRef.current) {
+        audioRef.current.pause();
+        setIsPlayingAudio(false);
+        return;
+      }
+
+      setIsPlayingAudio(true);
+      toast.loading('Generating audio...');
+
+      const response = await fetch('/api/tts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: textContent,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate audio');
+      }
+
+      // Get the audio data as a blob
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+
+      // Play the audio
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+      
+      audio.onended = () => {
+        setIsPlayingAudio(false);
+        URL.revokeObjectURL(audioUrl);
+      };
+      
+      audio.onerror = () => {
+        setIsPlayingAudio(false);
+        toast.error('Failed to play audio');
+        URL.revokeObjectURL(audioUrl);
+      };
+
+      toast.dismiss();
+      await audio.play();
+    } catch (error) {
+      console.error('Error playing audio:', error);
+      toast.error((error as Error).message || 'Failed to play audio');
+      setIsPlayingAudio(false);
+    }
+  };
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -42,11 +119,7 @@ export function PureMessageActions({
               className="py-1 px-2 h-fit text-muted-foreground"
               variant="outline"
               onClick={async () => {
-                const textFromParts = message.parts
-                  ?.filter((part) => part.type === 'text')
-                  .map((part) => part.text)
-                  .join('\n')
-                  .trim();
+                const textFromParts = getMessageText();
 
                 if (!textFromParts) {
                   toast.error("There's no text to copy!");
@@ -61,6 +134,20 @@ export function PureMessageActions({
             </Button>
           </TooltipTrigger>
           <TooltipContent>Copy</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              data-testid="message-play"
+              className="py-1 px-2 h-fit text-muted-foreground !pointer-events-auto"
+              variant="outline"
+              onClick={handlePlayAudio}
+            >
+              <SpeakerIcon />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{isPlayingAudio ? 'Stop Audio' : 'Play Message'}</TooltipContent>
         </Tooltip>
 
         <Tooltip>
@@ -152,6 +239,7 @@ export function PureMessageActions({
                             chat_id: chatId,
                             message_id: message.id,
                             is_upvoted: false,
+                            type: 'down',
                           },
                         ];
                       },
