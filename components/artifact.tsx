@@ -57,7 +57,7 @@ export interface UIArtifact {
     width: number;
     height: number;
   };
-  annotations?: DocumentAnnotation[]; // Added annotations property
+  annotations?: DocumentAnnotation<unknown>[]; // Added annotations property
 }
 
 // Helper function to find annotation position in text

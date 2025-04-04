@@ -20,13 +20,8 @@ import {
   suggestionsPlugin,
   suggestionsPluginKey,
 } from '@/lib/editor/suggestions';
-import {
-  annotationsPlugin,
-  annotationsPluginKey,
-  createAnnotationDecorations,
-} from '@/lib/editor/annotations';
+import { annotationsPlugin, type UIAnnotation } from '@/lib/editor/annotations';
 import type { DocumentAnnotation } from '@/components/artifact';
-import type { DocumentAnnotationPosition } from '@/lib/ai/tools/request-contract-fields';
 
 type EditorProps = {
   content: string;
@@ -36,101 +31,10 @@ type EditorProps = {
   currentVersionIndex: number;
   suggestions: Array<Suggestion>;
   annotations?: DocumentAnnotation<ContractField>[];
+  onAnnotationSelect?: (annotation: UIAnnotation | null) => void;
 };
 
 export const pmu = new ProseMirrorUnified([new GFMExtension()]);
-
-// Helper function to find annotation position in text
-function findAnnotationPosition(
-  text: string,
-  position: DocumentAnnotationPosition,
-): { start: number; end: number } | null {
-  try {
-    // Check if position has required properties
-    if (
-      !position ||
-      !position.placeholder ||
-      !position.prefix ||
-      !position.suffix
-    ) {
-      console.warn('Invalid position data:', position);
-      return null;
-    }
-
-    // Create a regex pattern that escapes special characters
-    const escapeRegExp = (str: string) =>
-      str ? str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '';
-
-    // Normalize text by removing HTML tags
-    const normalizeText = (str: string) =>
-      str ? str.replace(/<\/?[^>]+(>|$)/g, '') : '';
-
-    // Normalize input text and position components for more accurate matching
-    const normalizedText = normalizeText(text);
-    const normalizedPrefix = normalizeText(position.prefix);
-    const normalizedPlaceholder = normalizeText(position.placeholder);
-    const normalizedSuffix = normalizeText(position.suffix);
-
-    // First attempt: try exact pattern with normalized text
-    const exactPattern =
-      escapeRegExp(normalizedPrefix) +
-      escapeRegExp(normalizedPlaceholder) +
-      escapeRegExp(normalizedSuffix);
-
-    const exactMatch = new RegExp(exactPattern).exec(normalizedText);
-    if (exactMatch) {
-      const start = exactMatch.index + normalizedPrefix.length;
-      const end = start + normalizedPlaceholder.length;
-      return { start, end };
-    }
-
-    // Second attempt: try matching just with prefix and placeholder
-    const prefixPlaceholderPattern =
-      escapeRegExp(normalizedPrefix) + escapeRegExp(normalizedPlaceholder);
-
-    const prefixMatch = new RegExp(prefixPlaceholderPattern).exec(
-      normalizedText,
-    );
-    if (prefixMatch) {
-      const start = prefixMatch.index + normalizedPrefix.length;
-      const end = start + normalizedPlaceholder.length;
-      return { start, end };
-    }
-
-    // Last resort: try to find just the placeholder
-    const placeholderMatch = new RegExp(
-      escapeRegExp(normalizedPlaceholder),
-    ).exec(normalizedText);
-
-    if (placeholderMatch) {
-      return {
-        start: placeholderMatch.index,
-        end: placeholderMatch.index + normalizedPlaceholder.length,
-      };
-    }
-
-    // If we still can't find it, try with original (non-normalized) placeholder as a last resort
-    const originalPlaceholderMatch = new RegExp(
-      escapeRegExp(position.placeholder),
-    ).exec(text);
-
-    if (originalPlaceholderMatch) {
-      return {
-        start: originalPlaceholderMatch.index,
-        end: originalPlaceholderMatch.index + position.placeholder.length,
-      };
-    }
-
-    console.warn(
-      'Could not find position for placeholder:',
-      position.placeholder,
-    );
-    return null;
-  } catch (error) {
-    console.error('Error finding annotation position:', error);
-    return null;
-  }
-}
 
 function PureEditor({
   content,
@@ -138,6 +42,7 @@ function PureEditor({
   suggestions,
   status,
   annotations = [],
+  onAnnotationSelect,
 }: EditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<EditorView | null>(null);
@@ -168,6 +73,7 @@ function PureEditor({
 
       editorRef.current = new EditorView(containerRef.current, {
         state,
+        ...(onAnnotationSelect && { onAnnotationSelect }),
       });
     }
 
@@ -191,9 +97,10 @@ function PureEditor({
             onSaveContent,
           });
         },
+        ...(onAnnotationSelect && { onAnnotationSelect }),
       });
     }
-  }, [onSaveContent]);
+  }, [onSaveContent, onAnnotationSelect]);
 
   useEffect(() => {
     if (editorRef.current && content) {
@@ -250,23 +157,14 @@ function PureEditor({
 
   // Add effect to handle annotations using the dedicated plugin
   useEffect(() => {
-    if (editorRef.current?.state.doc && content && annotations.length > 0) {
-      // Create decorations for annotations using our specialized function
-      const annotationDecorations = createAnnotationDecorations(
+    if (editorRef.current?.state) {
+      const transaction = editorRef.current.state.tr.setMeta(
+        'setAnnotations',
         annotations,
-        editorRef.current,
-        content,
       );
-
-      // Apply the decorations directly to our annotations plugin
-      const transaction = editorRef.current.state.tr;
-      transaction.setMeta(annotationsPluginKey, {
-        decorations: annotationDecorations,
-      });
-
       editorRef.current.dispatch(transaction);
     }
-  }, [annotations, content]);
+  }, [annotations]);
 
   return (
     <div className="relative prose dark:prose-invert" ref={containerRef} />
@@ -281,7 +179,8 @@ function areEqual(prevProps: EditorProps, nextProps: EditorProps) {
     prevProps.isCurrentVersion === nextProps.isCurrentVersion &&
     !(prevProps.status === 'streaming' && nextProps.status === 'streaming') &&
     prevProps.content === nextProps.content &&
-    prevProps.onSaveContent === nextProps.onSaveContent
+    prevProps.onSaveContent === nextProps.onSaveContent &&
+    prevProps.onAnnotationSelect === nextProps.onAnnotationSelect
   );
 }
 

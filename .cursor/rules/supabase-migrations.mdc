@@ -1,0 +1,8 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+This service runs on supabase, all migrations are stored in supabase/migrations file
+To create new migration always use `supabase migration new <description>` cli command, don't create migration files manually

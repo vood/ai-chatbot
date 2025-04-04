@@ -732,3 +732,68 @@ export async function updateDocumentContent({
     throw error;
   }
 }
+
+// --- Fetch Contacts Associated with a Document ---
+export async function getContactsForDocument({
+  documentId,
+}: {
+  documentId: string;
+}): Promise<Array<Pick<Contact, 'id' | 'name'>>> {
+  // Return only id and name
+  if (!documentId || documentId === 'init') {
+    return [];
+  }
+
+  const supabase = await createClient();
+
+  try {
+    // Step 1: Find distinct non-null contact_ids associated with the document
+    // We need to query contract_fields table for this.
+    const { data: fieldData, error: fieldError } = await supabase
+      .from('contract_fields')
+      .select('contact_id')
+      .eq('document_id', documentId)
+      .neq('contact_id', null); // Ensure contact_id is not null
+
+    if (fieldError) {
+      console.error(
+        'Error fetching contact_ids from contract_fields:',
+        fieldError,
+      );
+      throw fieldError;
+    }
+
+    if (!fieldData || fieldData.length === 0) {
+      return []; // No associated contacts found
+    }
+
+    // Extract unique, non-null contact IDs
+    const distinctContactIds = [
+      ...new Set(
+        fieldData
+          .map((field) => field.contact_id)
+          .filter((id): id is string => !!id),
+      ),
+    ];
+
+    if (distinctContactIds.length === 0) {
+      return [];
+    }
+
+    // Step 2: Fetch contact details for these unique IDs
+    const { data: contactsData, error: contactsError } = await supabase
+      .from('contacts')
+      .select('id, name') // Select only id and name
+      .in('id', distinctContactIds);
+
+    if (contactsError) {
+      console.error('Error fetching contact details:', contactsError);
+      throw contactsError;
+    }
+
+    return contactsData || [];
+  } catch (error) {
+    console.error('Error in getContactsForDocument query:', error);
+    return []; // Return empty array on error
+  }
+}

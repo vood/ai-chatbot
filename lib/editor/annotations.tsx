@@ -7,6 +7,7 @@ import React from 'react';
 import type { ContractField } from '@/lib/db/schema';
 import type { DocumentAnnotation } from '@/components/artifact';
 import type { DocumentAnnotationPosition } from '@/lib/ai/tools/request-contract-fields';
+// import type { EditorProps } from '@/components/text-editor'; // Import EditorProps if needed for types
 
 // Define a type for annotations with position information
 export interface UIAnnotation extends DocumentAnnotation<ContractField> {
@@ -232,6 +233,10 @@ export function projectAnnotationsWithPositions(
   content: string,
   annotations: Array<DocumentAnnotation<ContractField>>,
 ): Array<UIAnnotation> {
+  // Add null/undefined check for annotations
+  if (!annotations) {
+    return [];
+  }
   return annotations.map((annotation) => {
     if (
       annotation.type !== 'contractField' ||
@@ -274,13 +279,12 @@ export function projectAnnotationsWithPositions(
     });
 
     if (!positions) {
-      // If document traversal fails, fall back to using the regex method
-      console.log('Document traversal failed, trying regex fallback');
+      // Fallback to regex if doc traversal fails or content is simpler
       const regexPositions = findAnnotationPosition(content, position);
 
       if (!regexPositions) {
         console.warn(
-          'Could not find position for placeholder:',
+          'Could not find position for placeholder (both methods):',
           position.placeholder,
         );
         return {
@@ -289,11 +293,19 @@ export function projectAnnotationsWithPositions(
           selectionEnd: undefined,
         };
       }
-
+      // Use regex positions ONLY if document traversal fails
+      // NOTE: Regex positions are relative to plain text, not Prosemirror doc,
+      // mapping them back accurately can be complex. Prioritize doc traversal.
+      // For simplicity here, we'll return undefined if doc traversal fails.
+      // A more robust solution would map regex positions back to Prosemirror positions.
+      console.warn(
+        'Document traversal failed for placeholder, returning undefined positions:',
+        position.placeholder,
+      );
       return {
         ...annotation,
-        selectionStart: regexPositions.start,
-        selectionEnd: regexPositions.end,
+        selectionStart: undefined, // Mark as not found in doc
+        selectionEnd: undefined,
       };
     }
 
@@ -305,323 +317,17 @@ export function projectAnnotationsWithPositions(
   });
 }
 
-// React component for annotation widget
-export const AnnotationWidget: React.FC<{
-  annotation: UIAnnotation;
-  onEdit?: () => void;
-}> = ({ annotation, onEdit }) => {
-  if (!annotation.data) return null;
-
-  const fieldType = annotation.data.field_type || 'unknown';
-  const fieldName = annotation.data.field_name || 'Field';
-
-  return (
-    <div className="annotation-widget">
-      <div className="annotation-info">
-        <span className="field-type">{fieldType}</span>
-        <span className="field-name">{fieldName}</span>
-      </div>
-      {onEdit && (
-        <button type="button" className="edit-button" onClick={onEdit}>
-          Edit
-        </button>
-      )}
-      <style jsx>{`
-        .annotation-widget {
-          position: absolute;
-          display: flex;
-          padding: 4px 8px;
-          background: white;
-          border: 1px solid #ccc;
-          border-radius: 4px;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-          z-index: 10;
-          margin-top: 4px;
-        }
-        .annotation-info {
-          display: flex;
-          flex-direction: column;
-          margin-right: 8px;
-        }
-        .field-type {
-          font-size: 10px;
-          color: #666;
-          text-transform: uppercase;
-        }
-        .field-name {
-          font-weight: bold;
-        }
-        .edit-button {
-          background: #f0f0f0;
-          border: none;
-          border-radius: 2px;
-          padding: 2px 6px;
-          font-size: 12px;
-          cursor: pointer;
-        }
-        .edit-button:hover {
-          background: #e0e0e0;
-        }
-      `}</style>
-    </div>
-  );
-};
-
-// Function to create annotation decoration
-export function createAnnotationWidget(
-  annotation: UIAnnotation,
-  view: EditorView,
-): { dom: HTMLElement; destroy: () => void } {
-  const dom = document.createElement('span');
-  const root = createRoot(dom);
-
-  dom.addEventListener('mousedown', (event) => {
-    event.preventDefault();
-    view.dom.blur();
-  });
-
-  const onEdit = () => {
-    // TODO: Implement editing functionality
-    console.log('Edit annotation:', annotation);
-  };
-
-  root.render(<AnnotationWidget annotation={annotation} onEdit={onEdit} />);
-
-  return {
-    dom,
-    destroy: () => {
-      // Wrapping unmount in setTimeout to avoid synchronous unmounting during render
-      setTimeout(() => {
-        root.unmount();
-      }, 0);
-    },
-  };
-}
-
 // Create a dedicated plugin for annotations
-export const annotationsPluginKey = new PluginKey('annotations');
-export const annotationsPlugin = new Plugin({
-  key: annotationsPluginKey,
-  state: {
-    init() {
-      return { decorations: DecorationSet.empty, selected: null };
-    },
-    apply(tr, state) {
-      const newDecorations = tr.getMeta(annotationsPluginKey);
-      if (newDecorations) return newDecorations;
+export const annotationsPluginKey = new PluginKey<AnnotationPluginState>(
+  'annotations',
+);
 
-      // If there's a selection operation, update the selected field
-      const selectedField = tr.getMeta('selectedField');
-      if (selectedField !== undefined) {
-        return {
-          ...state,
-          selected: selectedField,
-        };
-      }
-
-      return {
-        decorations: state.decorations.map(tr.mapping, tr.doc),
-        selected: state.selected,
-      };
-    },
-  },
-  props: {
-    decorations(state) {
-      return this.getState(state)?.decorations ?? DecorationSet.empty;
-    },
-    // Handle click events on annotations
-    handleClick(view, pos, event) {
-      // Find the decoration at the clicked position
-      const state = view.state;
-      const decorations = annotationsPluginKey.getState(state)?.decorations;
-
-      if (!decorations) return false;
-
-      const found = decorations.find(pos, pos);
-
-      if (found.length > 0) {
-        const decoration = found[0];
-        const annotationId = decoration.spec.id;
-
-        // Toggle the selected state
-        const currentSelected = annotationsPluginKey.getState(state)?.selected;
-        const newSelected =
-          currentSelected === annotationId ? null : annotationId;
-
-        view.dispatch(view.state.tr.setMeta('selectedField', newSelected));
-        return true;
-      }
-
-      // Click wasn't on an annotation
-      return false;
-    },
-  },
-});
-
-// Field Details component
-export const FieldDetails: React.FC<{
-  annotation: UIAnnotation;
-  onClose: () => void;
-  onEdit?: () => void;
-}> = ({ annotation, onClose, onEdit }) => {
-  if (!annotation?.data) return null;
-
-  const data = annotation.data;
-
-  // Try to extract field_definition_id if it exists
-  const fieldDefinitionId =
-    'field_definition_id' in data ? (data as any).field_definition_id : null;
-
-  return (
-    <div className="field-details-popup">
-      <div className="field-details-header">
-        <h4 className="field-name">{data.field_name}</h4>
-        <button type="button" className="close-button" onClick={onClose}>
-          ×
-        </button>
-      </div>
-
-      <div className="field-details-content">
-        <div className="field-detail-row">
-          <span className="field-label">Type:</span>
-          <span className="field-value">{data.field_type}</span>
-        </div>
-
-        <div className="field-detail-row">
-          <span className="field-label">Required:</span>
-          <span className="field-value">{data.is_required ? 'Yes' : 'No'}</span>
-        </div>
-
-        {fieldDefinitionId && (
-          <div className="field-detail-row">
-            <span className="field-label">Definition ID:</span>
-            <span className="field-value field-id">{fieldDefinitionId}</span>
-          </div>
-        )}
-
-        <div className="field-detail-row">
-          <span className="field-label">Placeholder:</span>
-          <span className="field-value field-placeholder">
-            {data.placeholder_text}
-          </span>
-        </div>
-
-        <div className="field-detail-row">
-          <span className="field-label">Status:</span>
-          <span className="field-value">
-            {data.is_filled ? 'Filled' : 'Not filled'}
-          </span>
-        </div>
-
-        {data.field_value && (
-          <div className="field-detail-row">
-            <span className="field-label">Value:</span>
-            <span className="field-value">{data.field_value}</span>
-          </div>
-        )}
-      </div>
-
-      <div className="field-details-actions">
-        {onEdit && (
-          <button type="button" className="edit-button" onClick={onEdit}>
-            Edit Field
-          </button>
-        )}
-      </div>
-
-      <style jsx>{`
-        .field-details-popup {
-          position: absolute;
-          background: white;
-          border: 1px solid #ccc;
-          border-radius: 6px;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-          width: 300px;
-          z-index: 50;
-          font-family: system-ui, sans-serif;
-          color: #333;
-          font-size: 14px;
-          overflow: hidden;
-        }
-        
-        .field-details-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 10px 16px;
-          background: #f8f9fa;
-          border-bottom: 1px solid #eee;
-        }
-        
-        .field-name {
-          margin: 0;
-          font-size: 16px;
-          font-weight: 600;
-        }
-        
-        .close-button {
-          background: none;
-          border: none;
-          font-size: 18px;
-          cursor: pointer;
-          color: #666;
-          padding: 0 4px;
-          line-height: 1;
-        }
-        
-        .field-details-content {
-          padding: 12px 16px;
-        }
-        
-        .field-detail-row {
-          display: flex;
-          margin-bottom: 8px;
-        }
-        
-        .field-label {
-          width: 90px;
-          font-weight: 500;
-          color: #666;
-        }
-        
-        .field-value {
-          flex: 1;
-        }
-        
-        .field-id, .field-placeholder {
-          font-family: monospace;
-          font-size: 12px;
-          background: #f5f5f5;
-          padding: 2px 4px;
-          border-radius: 3px;
-          word-break: break-all;
-        }
-        
-        .field-details-actions {
-          display: flex;
-          justify-content: flex-end;
-          padding: 12px 16px;
-          background: #f8f9fa;
-          border-top: 1px solid #eee;
-        }
-        
-        .edit-button {
-          background: #0078d4;
-          color: white;
-          border: none;
-          border-radius: 4px;
-          padding: 6px 12px;
-          font-size: 14px;
-          cursor: pointer;
-        }
-        
-        .edit-button:hover {
-          background: #106ebe;
-        }
-      `}</style>
-    </div>
-  );
-};
+// Define the state shape for the plugin
+interface AnnotationPluginState {
+  projectedAnnotations: UIAnnotation[];
+  selectedAnnotationId: string | null;
+  // We don't store decorations directly in state anymore, they are derived
+}
 
 // Helper function to get a consistent color based on contact_id
 function getContactColor(contactId: string): { bg: string; border: string } {
@@ -641,131 +347,230 @@ function getContactColor(contactId: string): { bg: string; border: string } {
 
   // Use the contact_id string to deterministically select a color
   // This ensures the same contact always gets the same color
-  const hash = contactId.split('').reduce((acc, char) => {
-    return char.charCodeAt(0) + ((acc << 5) - acc);
-  }, 0);
+  const hash = (contactId || '') // Handle potential null/undefined contactId
+    .split('')
+    .reduce((acc, char) => {
+      return char.charCodeAt(0) + ((acc << 5) - acc);
+    }, 0);
 
   const index = Math.abs(hash) % colors.length;
   return colors[index];
 }
 
-// Helper function to create annotation decorations
-export function createAnnotationDecorations(
-  annotations: DocumentAnnotation<ContractField>[],
-  editorView: EditorView,
-  content: string,
-): DecorationSet {
-  if (!annotations || annotations.length === 0) return DecorationSet.empty;
+export const annotationsPlugin = new Plugin({
+  key: annotationsPluginKey,
+  state: {
+    init(_, instance): AnnotationPluginState {
+      // Initialize with empty annotations and no selection
+      return { projectedAnnotations: [], selectedAnnotationId: null };
+    },
+    apply(tr, state, oldState, newState): AnnotationPluginState {
+      // Check if new annotations are being passed in meta
+      const newAnnotations = tr.getMeta('setAnnotations');
+      if (newAnnotations) {
+        const doc = tr.doc || newState.doc; // Use transaction doc if available
+        const content = doc.textContent; // Or serialize the doc if needed
+        // Ensure newAnnotations is an array before projecting
+        const annotationsArray = Array.isArray(newAnnotations)
+          ? newAnnotations
+          : [];
+        const projected = projectAnnotationsWithPositions(
+          doc,
+          content,
+          annotationsArray,
+        );
+        // Keep selected if it still exists, otherwise clear
+        const selectedStillExists = projected.some(
+          (a) => a.id === state.selectedAnnotationId,
+        );
+        return {
+          projectedAnnotations: projected,
+          selectedAnnotationId: selectedStillExists
+            ? state.selectedAnnotationId
+            : null,
+        };
+      }
 
-  const doc = editorView.state.doc;
-  const decorations: Decoration[] = [];
-  const fieldDetailsDecorations: Decoration[] = [];
+      // Check if a selection change is being passed in meta
+      const selectionChange = tr.getMeta('setSelectedAnnotation');
+      if (selectionChange !== undefined) {
+        // selectionChange contains the ID or null
+        return {
+          ...state,
+          selectedAnnotationId: selectionChange,
+        };
+      }
 
-  // Track colors by contact_id
-  const contactColorMap = new Map<string, { bg: string; border: string }>();
+      // If the document changed, we need to remap annotations and potentially re-project
+      // For simplicity now, we just map the existing state. A full re-projection might be needed
+      // if content changes significantly affect calculated positions.
+      if (tr.docChanged) {
+        // Simple mapping - positions might become inaccurate if edits happen *within* annotations
+        const mappedAnnotations = state.projectedAnnotations
+          .map((anno) => {
+            if (
+              anno.selectionStart === undefined ||
+              anno.selectionEnd === undefined
+            )
+              return anno;
+            const from = tr.mapping.map(anno.selectionStart);
+            const to = tr.mapping.map(anno.selectionEnd);
+            // Basic check if mapping deleted the range
+            if (from >= to) {
+              return {
+                ...anno,
+                selectionStart: undefined,
+                selectionEnd: undefined,
+              };
+            }
+            return { ...anno, selectionStart: from, selectionEnd: to };
+          })
+          .filter((a) => a.selectionStart !== undefined); // Remove annotations whose range was deleted
 
-  // Get the currently selected field
-  const selectedField = annotationsPluginKey.getState(
-    editorView.state,
-  )?.selected;
+        // Check if selected annotation still exists after mapping
+        const selectedStillExists = mappedAnnotations.some(
+          (a) => a.id === state.selectedAnnotationId,
+        );
 
-  // Project annotations with positions
-  const projectedAnnotations = projectAnnotationsWithPositions(
-    doc,
-    content,
-    annotations,
-  );
+        return {
+          projectedAnnotations: mappedAnnotations,
+          selectedAnnotationId: selectedStillExists
+            ? state.selectedAnnotationId
+            : null,
+        };
+      }
 
-  for (const annotation of projectedAnnotations) {
-    if (
-      annotation.type !== 'contractField' ||
-      !annotation.selectionStart ||
-      !annotation.selectionEnd ||
-      !annotation.data
-    )
-      continue;
+      // Otherwise, return the state unchanged
+      return state;
+    },
+  },
+  props: {
+    decorations(state) {
+      const pluginState = annotationsPluginKey.getState(state);
+      if (!pluginState) return DecorationSet.empty;
 
-    const { selectionStart, selectionEnd } = annotation;
-    const contactId = annotation.data.contact_id;
+      const { projectedAnnotations, selectedAnnotationId } = pluginState;
+      const decorations: Decoration[] = [];
+      const contactColorMap = new Map<string, { bg: string; border: string }>();
 
-    // Get or create a color for this contact
-    let contactColor = contactColorMap.get(contactId);
-    if (!contactColor) {
-      contactColor = getContactColor(contactId);
-      contactColorMap.set(contactId, contactColor);
-    }
+      for (const annotation of projectedAnnotations) {
+        if (
+          annotation.type !== 'contractField' ||
+          annotation.selectionStart === undefined || // Check for undefined explicitly
+          annotation.selectionEnd === undefined ||
+          !annotation.data
+        )
+          continue;
 
-    // Create field decoration with contact-specific color
-    const fieldType = (annotation.data.field_type || 'unknown').toLowerCase();
-    const isSelected = selectedField === annotation.id;
+        const { selectionStart, selectionEnd } = annotation;
+        const contactId = annotation.data.contact_id || 'unknown'; // Handle missing contact_id
 
-    // Enhance the styling with contact-specific color and selection state
-    const decoration = Decoration.inline(
-      selectionStart,
-      selectionEnd,
-      {
-        class: `annotation contract-field-${fieldType} contact-${contactId.substring(0, 8)}`,
-        style: `
-          background-color: ${contactColor.bg}; 
-          border: 1px solid ${contactColor.border};
-          border-radius: 2px; 
-          cursor: pointer;
-          ${isSelected ? `box-shadow: 0 0 0 2px ${contactColor.border};` : ''}
-        `,
-        'data-annotation-id': annotation.id,
-        'data-annotation-type': annotation.type,
-        'data-field-type': fieldType,
-        'data-contact-id': contactId,
-        title: `${annotation.data.field_name || 'Field'} (${annotation.data.field_type || 'unknown'})`,
-      },
-      {
-        id: annotation.id,
-        type: 'contractField',
-      },
-    );
+        // Get or create a color for this contact
+        let contactColor = contactColorMap.get(contactId);
+        if (!contactColor) {
+          contactColor = getContactColor(contactId);
+          contactColorMap.set(contactId, contactColor);
+        }
 
-    decorations.push(decoration);
+        const fieldType = (
+          annotation.data.field_type || 'unknown'
+        ).toLowerCase();
+        const isSelected = selectedAnnotationId === annotation.id;
 
-    // If this field is selected, create a widget decoration for the field details
-    if (selectedField === annotation.id) {
-      const fieldDetailsWidget = Decoration.widget(
-        selectionEnd,
-        (view) => {
-          const dom = document.createElement('div');
-          const root = createRoot(dom);
+        // Create inline decoration
+        const decoration = Decoration.inline(
+          selectionStart,
+          selectionEnd,
+          {
+            class: `annotation contract-field-${fieldType} contact-${contactId.substring(0, 8)} ${isSelected ? 'selected' : ''}`,
+            style: `
+              background-color: ${contactColor.bg};
+              border: 1px solid ${contactColor.border};
+              border-radius: 3px;
+              padding: 0.5px 2px; /* Minimal padding */
+              margin: 0 1px; /* Minimal margin */
+              cursor: pointer;
+              transition: all 0.1s ease-in-out;
+              ${isSelected ? `box-shadow: 0 0 0 2px ${contactColor.border}; outline: 1px solid ${contactColor.border};` : ''}
+            `,
+            'data-annotation-id': annotation.id,
+            title: `${annotation.data.field_name || 'Field'} (${annotation.data.field_type || 'unknown'}) - Click to view details`,
+          },
+          {
+            // Pass annotation id for click handling
+            id: annotation.id,
+            type: 'contractField',
+          },
+        );
+        decorations.push(decoration);
+      }
 
-          const handleClose = () => {
-            view.dispatch(view.state.tr.setMeta('selectedField', null));
-          };
+      return DecorationSet.create(state.doc, decorations);
+    },
+    // Handle click events on annotations
+    handleClick(view, pos, event) {
+      const state = view.state;
+      const pluginState = annotationsPluginKey.getState(state);
+      if (!pluginState) return false;
 
-          const handleEdit = () => {
-            console.log('Edit field:', annotation);
-            // TODO: Implement edit functionality
-          };
+      const { projectedAnnotations, selectedAnnotationId } = pluginState;
+      let clickedAnnotation: UIAnnotation | null = null;
 
-          root.render(
-            <FieldDetails
-              annotation={annotation}
-              onClose={handleClose}
-              onEdit={handleEdit}
-            />,
-          );
+      // Find if the click position falls within any annotation range
+      for (const annotation of projectedAnnotations) {
+        if (
+          annotation.selectionStart !== undefined &&
+          annotation.selectionEnd !== undefined &&
+          pos >= annotation.selectionStart &&
+          pos <= annotation.selectionEnd
+        ) {
+          clickedAnnotation = annotation;
+          break;
+        }
+      }
 
-          return dom;
-        },
-        {
-          id: `details-${annotation.id}`,
-          key: `field-details-${annotation.id}`,
-          side: 1,
-        },
-      );
+      // Get the callback from props
+      const onAnnotationSelect = (view.props as any).onAnnotationSelect as (
+        annotation: UIAnnotation | null,
+      ) => void;
 
-      fieldDetailsDecorations.push(fieldDetailsWidget);
-    }
-  }
+      let newSelectedId: string | null = null;
 
-  return DecorationSet.create(editorView.state.doc, [
-    ...decorations,
-    ...fieldDetailsDecorations,
-  ]);
-}
+      if (clickedAnnotation) {
+        // If clicking the already selected annotation, deselect it. Otherwise, select the new one.
+        newSelectedId =
+          selectedAnnotationId === clickedAnnotation.id
+            ? null
+            : clickedAnnotation.id;
+      } else {
+        // Clicked outside any annotation, deselect
+        newSelectedId = null;
+      }
+
+      // Call the external callback only if the selection changed or an annotation was clicked
+      if (newSelectedId !== selectedAnnotationId || clickedAnnotation) {
+        if (onAnnotationSelect) {
+          // Pass the full annotation object if selected, otherwise null
+          onAnnotationSelect(newSelectedId ? clickedAnnotation : null);
+        } else {
+          console.warn('onAnnotationSelect prop not provided to EditorView');
+        }
+      }
+
+      // Dispatch transaction to update internal plugin state if selection changed
+      if (newSelectedId !== selectedAnnotationId) {
+        view.dispatch(
+          view.state.tr.setMeta('setSelectedAnnotation', newSelectedId),
+        );
+        // Prevent default browser behavior only if we handled the click
+        event.preventDefault();
+        return true;
+      }
+
+      // If click was outside and nothing was selected, let the default behavior proceed.
+      // If click was on the selected annotation to deselect it, we already returned true.
+      // If click was on a non-selected annotation to select it, we already returned true.
+      return clickedAnnotation !== null; // Return true if click was on *any* annotation
+    },
+  },
+});

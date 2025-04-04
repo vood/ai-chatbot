@@ -1,0 +1,33 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Project Architecture
+
+## Core Technologies
+
+*   Framework: Next.JS 15
+*   Runtime: Node.js 22
+*   UI Library: React
+
+## UI Components & Styling
+
+*   Component Library: Shadcn UI
+    *   Utilize standard Shadcn components whenever possible.
+*   Icons: Lucide Icons
+*   Notifications: Sonner for toasts
+
+## Backend & Database (Supabase)
+
+*   Database Interaction:
+    *   All database logic must reside within `lib/db/queries`.
+    *   Database queries must be executed server-side only. Direct client-side database access is prohibited.
+    *   Use Next.js Server Actions to expose database functionality to the frontend when necessary.
+*   Complex Server-Side Logic:
+    *   For complex operations or endpoints, consider creating API routes under `/app/api/*`.
+
+## Code Organization & Best Practices
+
+*   Hooks: Encapsulate complex component logic within custom React Hooks.
+*   Server-Side Logic: Keep database interactions and sensitive logic strictly on the server.

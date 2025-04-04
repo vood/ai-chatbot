@@ -17,6 +17,17 @@ import { toast } from 'sonner';
 import { getContractFields, getSuggestions } from '../actions';
 import { FormInputIcon, ScaleIcon } from 'lucide-react';
 import type { DocumentAnnotation } from '@/components/artifact';
+import { useState } from 'react';
+import type { UIAnnotation } from '@/lib/editor/annotations';
+import { FieldDetailsEditor } from '@/components/field-details-editor';
+import type { ContractField } from '@/lib/db/schema';
+// Import Sheet components
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 
 interface TextArtifactMetadata {
   suggestions: Array<Suggestion>;
@@ -36,58 +47,71 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
     const suggestions = await getSuggestions({ documentId });
     const contractFields = await getContractFields({ documentId });
 
-    console.log('contractFields', contractFields);
+    console.log(
+      'Initializing text artifact, fetched contractFields:',
+      contractFields,
+    );
 
     // Create annotations for each field occurrence
     const annotations: Array<DocumentAnnotation<any>> = [];
 
-    contractFields.forEach((field) => {
-      // Check if the field has multiple occurrences
-      if (field.position_in_document?.occurrences?.length) {
-        // Create an annotation for each occurrence
-        field.position_in_document.occurrences.forEach((occurrence: any) => {
-          annotations.push({
-            id: occurrence.id || field.id,
-            type: 'contractField',
-            data: {
-              ...field,
-              // Override position with the specific occurrence position
-              position_in_document: {
-                type: 'annotation',
-                position: occurrence.position,
-              },
-              // Include the field definition id for reference
-              field_definition_id: field.id,
-              placeholder_text: occurrence.placeholder_text,
+    // Ensure contractFields is an array
+    if (Array.isArray(contractFields)) {
+      contractFields.forEach((field) => {
+        // Check if the field has multiple occurrences
+        if (field.position_in_document?.occurrences?.length) {
+          // Create an annotation for each occurrence
+          field.position_in_document.occurrences.forEach(
+            (occurrence: any, index: number) => {
+              annotations.push({
+                id: occurrence.id || `${field.id}-${index}`, // Ensure unique ID
+                type: 'contractField',
+                data: {
+                  ...field,
+                  // Override position with the specific occurrence position
+                  position_in_document: {
+                    type: 'annotation',
+                    position: occurrence.position,
+                  },
+                  // Include the field definition id for reference
+                  field_definition_id: field.id,
+                  placeholder_text: occurrence.placeholder_text,
+                  contact_id: field.contact_id, // Ensure contact_id is included
+                },
+              });
             },
+          );
+        } else {
+          // Fallback for single occurrence or old format
+          annotations.push({
+            id: field.id,
+            type: 'contractField',
+            data: field, // Include contact_id if available at top level
           });
-        });
-      } else {
-        // Fallback for backward compatibility with old format
-        annotations.push({
-          id: field.id,
-          type: 'contractField',
-          data: field,
-        });
-      }
-    });
+        }
+      });
+    } else {
+      console.error('contractFields is not an array:', contractFields);
+    }
+
+    console.log('Created annotations:', annotations);
 
     setMetadata({
-      suggestions,
+      suggestions: Array.isArray(suggestions) ? suggestions : [], // Ensure suggestions is array
       annotations,
     });
   },
   onStreamPart: ({ streamPart, setMetadata, setArtifact }) => {
     if (streamPart.type === 'suggestion') {
-      setMetadata((metadata) => {
-        return {
+      const suggestion = streamPart.content as Suggestion;
+      // Basic validation using optional chaining
+      if (suggestion?.id) {
+        setMetadata((metadata) => ({
           ...metadata,
-          suggestions: [
-            ...metadata.suggestions,
-            streamPart.content as Suggestion,
-          ],
-        };
-      });
+          // Use nullish coalescing for potentially null suggestions array
+          suggestions: [...(metadata?.suggestions ?? []), suggestion],
+        }));
+      }
     }
 
     // Handle document annotations
@@ -95,81 +119,87 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
       const annotationContent =
         streamPart.content as DocumentAnnotationStreamContent;
 
-      if (annotationContent && typeof annotationContent === 'object') {
+      if (
+        annotationContent &&
+        typeof annotationContent === 'object' &&
+        annotationContent.type &&
+        annotationContent.data
+      ) {
         setMetadata((metadata) => {
-          const annotations = [...(metadata.annotations || [])];
+          // Use nullish coalescing for potentially null annotations array
+          const annotations = [...(metadata?.annotations ?? [])];
+          let newOrUpdatedAnnotation: DocumentAnnotation<any> | null = null;
 
-          // Handle contract field annotations with multiple occurrences
+          // Handle contract field annotations with multiple occurrences (new format)
           if (
             annotationContent.type === 'contractField' &&
             annotationContent.data?.definition &&
             annotationContent.data?.occurrence
           ) {
             const { definition, occurrence } = annotationContent.data;
-
-            // Create a merged annotation object
-            const newAnnotation = {
-              id: occurrence.id || crypto.randomUUID(),
-              type: 'contractField',
-              data: {
-                ...definition,
-                // Set the specific position for this occurrence
-                position_in_document: {
-                  type: 'annotation',
-                  position: occurrence.position,
+            // Ensure required fields exist
+            if (definition && occurrence && occurrence.id && definition.id) {
+              newOrUpdatedAnnotation = {
+                id: occurrence.id, // Use the specific occurrence ID
+                type: 'contractField',
+                data: {
+                  ...definition,
+                  position_in_document: {
+                    type: 'annotation',
+                    position: occurrence.position,
+                  },
+                  field_definition_id: definition.id,
+                  placeholder_text: occurrence.placeholder_text,
+                  contact_id: definition.contact_id, // Get contact_id from definition
                 },
-                // Keep reference to definition ID
-                field_definition_id: definition.id,
-                // Use the occurrence's placeholder text
-                placeholder_text: occurrence.placeholder_text,
-              },
-            };
-
-            // Find if this occurrence already exists
-            const existingIndex = annotations.findIndex(
-              (a) => a.id === newAnnotation.id,
-            );
-
-            if (existingIndex >= 0) {
-              // Replace existing annotation
-              annotations[existingIndex] = newAnnotation;
-            } else {
-              // Add new annotation
-              annotations.push(newAnnotation);
+              };
             }
           } else {
-            // Handle legacy format annotations
-            const newAnnotation = {
-              id: annotationContent.data?.id || crypto.randomUUID(),
-              type: annotationContent.type || 'unknown',
+            // Handle legacy/simpler format annotations
+            const annotationId =
+              annotationContent.data?.id || crypto.randomUUID();
+            newOrUpdatedAnnotation = {
+              id: annotationId,
+              type: annotationContent.type,
               data: annotationContent.data,
             };
-
-            // Check if annotation already exists by ID
-            const existingIndex = annotations.findIndex(
-              (a) => a.id === newAnnotation.id,
-            );
-
-            if (existingIndex >= 0) {
-              // Replace existing annotation
-              annotations[existingIndex] = newAnnotation;
-            } else {
-              // Add new annotation
-              annotations.push(newAnnotation);
-            }
           }
 
-          return {
-            ...metadata,
-            annotations,
-          };
+          // Add or update the annotation in the list
+          if (newOrUpdatedAnnotation) {
+            const existingIndex = annotations.findIndex(
+              (a) => a.id === newOrUpdatedAnnotation!.id,
+            );
+            if (existingIndex >= 0) {
+              annotations[existingIndex] = newOrUpdatedAnnotation;
+            } else {
+              annotations.push(newOrUpdatedAnnotation);
+            }
+            console.log('Updated annotations metadata:', annotations);
+            return {
+              ...metadata,
+              annotations, // Return the modified annotations array
+            };
+          } else {
+            console.warn(
+              'Failed to create/update annotation from stream part:',
+              streamPart,
+            );
+            // Return potentially updated metadata but without the failed annotation change
+            return { ...metadata, annotations };
+          }
         });
 
-        // Update artifact status
-        setArtifact((draftArtifact) => ({
-          ...draftArtifact,
-          status: 'streaming',
-        }));
+        // Update artifact status (consider if needed for annotations)
+        // setArtifact((draftArtifact) => ({
+        //   ...draftArtifact,
+        //   status: 'streaming',
+        // }));
+      } else {
+        console.warn(
+          'Invalid annotation stream part content:',
+          annotationContent,
+        );
       }
     }
 
@@ -199,7 +229,12 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
     getDocumentContentById,
     isLoading,
     metadata,
+    setMetadata,
   }) => {
+    // Add state for the selected annotation
+    const [selectedAnnotation, setSelectedAnnotation] =
+      useState<UIAnnotation | null>(null);
+
     if (isLoading) {
       return <DocumentSkeleton artifactKind="text" />;
     }
@@ -211,24 +246,92 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
       return <DiffView oldContent={oldContent} newContent={newContent} />;
     }
 
-    return (
-      <>
-        <div className="flex flex-row py-8 md:p-20 px-4">
-          <Editor
-            content={content}
-            suggestions={metadata ? metadata.suggestions : []}
-            isCurrentVersion={isCurrentVersion}
-            currentVersionIndex={currentVersionIndex}
-            status={status}
-            onSaveContent={onSaveContent}
-            annotations={metadata ? metadata.annotations : []}
-          />
+    // Ensure metadata and annotations exist before passing
+    const currentAnnotations = metadata?.annotations || [];
+    const currentSuggestions = metadata?.suggestions || [];
 
-          {metadata?.suggestions && metadata.suggestions.length > 0 ? (
-            <div className="md:hidden h-dvh w-12 shrink-0" />
-          ) : null}
-        </div>
-      </>
+    // Handler for closing the sheet (clears selection)
+    const handleSheetClose = (isOpen: boolean) => {
+      if (!isOpen) {
+        setSelectedAnnotation(null);
+      }
+    };
+
+    // Placeholder save handler - TODO: Implement backend update
+    const handleSaveAnnotation = (
+      annotationId: string,
+      updatedData: Partial<ContractField>,
+    ) => {
+      console.log('Saving annotation:', annotationId, updatedData);
+      // TODO: Call API to save changes
+
+      // OPTIONAL: Update local metadata state immediately for better UX
+      // Requires setMetadata to be passed down or handled via context/hook
+      if (setMetadata) {
+        setMetadata((currentMetadata) => {
+          if (!currentMetadata?.annotations) return currentMetadata;
+
+          const updatedAnnotations = currentMetadata.annotations.map((anno) => {
+            if (anno.id === annotationId) {
+              return {
+                ...anno,
+                data: {
+                  ...anno.data,
+                  ...updatedData,
+                  contact_id: updatedData.contact_id,
+                },
+              };
+            }
+            return anno;
+          });
+
+          return {
+            ...currentMetadata,
+            annotations: updatedAnnotations,
+          };
+        });
+      } else {
+        console.warn(
+          'setMetadata prop not available to update annotations locally.',
+        );
+      }
+
+      // Optionally close the sheet after saving
+      // setSelectedAnnotation(null);
+    };
+
+    return (
+      <div className="flex flex-row py-8 md:p-20 px-4">
+        <Editor
+          content={content}
+          suggestions={currentSuggestions}
+          isCurrentVersion={isCurrentVersion}
+          currentVersionIndex={currentVersionIndex}
+          status={status}
+          onSaveContent={onSaveContent}
+          annotations={currentAnnotations}
+          onAnnotationSelect={setSelectedAnnotation}
+        />
+        {metadata?.suggestions && metadata.suggestions.length > 0 ? (
+          <div className="md:hidden h-dvh w-12 shrink-0" />
+        ) : null}
+        <Sheet
+          open={selectedAnnotation !== null}
+          onOpenChange={handleSheetClose}
+        >
+          <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle>Edit Field</SheetTitle>
+            </SheetHeader>
+            <div className="py-4">
+              <FieldDetailsEditor
+                annotation={selectedAnnotation}
+                onSave={handleSaveAnnotation}
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
     );
   },
   actions: [

@@ -1,6 +1,6 @@
 import { type DataStreamWriter, tool } from 'ai';
 import { z } from 'zod';
-import { getDocumentById, } from '@/lib/db/queries';
+import { getDocumentById } from '@/lib/db/queries';
 import { documentHandlersByArtifactKind } from '@/lib/artifacts/server';
 
 interface UpdateDocumentProps {
@@ -20,6 +20,8 @@ A document is an artifact that can be used for writing, editing, and other conte
 
 **When NOT to use \`updateDocument\`:**
 - Immediately after creating a document
+
+NEVER RUN updateDocument right after createDocument.
 
 Do not return the document in the conversation, it's already in the artifact and shown to the user.
     `,
