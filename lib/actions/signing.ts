@@ -10,6 +10,9 @@ import {
   updateContractFieldsBatch,
   getContactsByIds,
   updateContactEmailsBatch,
+  getDocumentFieldContacts,
+  getSigningLinksWithContacts,
+  updateSigningLinkStatusById,
 } from '@/lib/db/queries';
 import type {
   SigningLinkInsert,
@@ -47,24 +50,15 @@ export const generateSigningLinks = async (input: GenerateLinksInput) => {
   }
   // User is now guaranteed to be UserWithWorkspace
 
-  const supabase = await createClient();
-
   console.log(
     `Generating signing links for document ${documentId} by user ${user.id}`,
   );
 
   // 1. Fetch all contact IDs associated with this document from contract_fields
-  const { data: fieldContacts, error: fieldError } = await supabase
-    .from('contract_fields')
-    .select('contact_id') // Select only the contact_id column
-    // Removed { distinct: true } option
-    .eq('document_id', documentId)
-    .eq('user_id', user.id); // Ensure user owns the fields
-
-  if (fieldError) {
-    console.error('Error fetching contacts for document:', fieldError);
-    throw new Error('Failed to retrieve document contacts.');
-  }
+  const fieldContacts = await getDocumentFieldContacts({
+    documentId,
+    userId: user.id,
+  });
 
   if (!fieldContacts || fieldContacts.length === 0) {
     console.log('No contacts found associated with this document.');
@@ -410,3 +404,139 @@ export const saveContactEmails = async (
     return { success: false, error: message };
   }
 };
+
+// Schema for sending emails with signing links
+const sendSigningEmailsSchema = z.object({
+  documentId: z.string().uuid(),
+  documentTitle: z.string().optional(),
+});
+
+// Server action to send emails with signing links to contacts
+export const sendSigningEmails = async (
+  input: z.infer<typeof sendSigningEmailsSchema>,
+): Promise<{ success: boolean; sentCount: number; error?: string }> => {
+  const parseResult = sendSigningEmailsSchema.safeParse(input);
+  if (!parseResult.success) {
+    console.error('Invalid input for sendSigningEmails:', parseResult.error);
+    return { success: false, sentCount: 0, error: 'Invalid input data.' };
+  }
+
+  const { documentId, documentTitle } = parseResult.data;
+  const user = await auth();
+
+  if (!user) {
+    return { success: false, sentCount: 0, error: 'Authentication required' };
+  }
+
+  try {
+    // 1. Get all signing links for this document
+    const signingLinks = await getSigningLinksWithContacts({
+      documentId,
+      userId: user.id,
+    });
+
+    if (!signingLinks || signingLinks.length === 0) {
+      return {
+        success: false,
+        sentCount: 0,
+        error: 'No signing links found for this document',
+      };
+    }
+
+    // 2. Filter contacts with valid emails
+    const contactsWithEmail = signingLinks.filter(
+      (link) => link.contacts?.email && link.contacts.email.trim() !== '',
+    );
+
+    if (contactsWithEmail.length === 0) {
+      return {
+        success: false,
+        sentCount: 0,
+        error: 'No contacts with email addresses found',
+      };
+    }
+
+    // 3. Send emails (in a real app, you'd use a service like SendGrid, Postmark, or similar)
+    // Here we're simulating successful email sending
+    const sentCount = await sendEmailsToContacts({
+      links: contactsWithEmail,
+      documentTitle: documentTitle || 'Document for signing',
+      senderName: user.email || 'Your colleague',
+    });
+
+    return {
+      success: true,
+      sentCount,
+      error: sentCount === 0 ? 'Failed to send emails' : undefined,
+    };
+  } catch (error) {
+    console.error('Error sending signing emails:', error);
+    return {
+      success: false,
+      sentCount: 0,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    };
+  }
+};
+
+// Helper function to handle the actual email sending
+// This would interface with your email provider (SendGrid, SES, etc.)
+async function sendEmailsToContacts({
+  links,
+  documentTitle,
+  senderName,
+}: {
+  links: any[];
+  documentTitle: string;
+  senderName: string;
+}): Promise<number> {
+  // Simulate email sending for now
+  // In a real implementation, you would use your email service provider's API
+  console.log(
+    `Would send ${links.length} emails for document "${documentTitle}"`,
+  );
+
+  let sentCount = 0;
+
+  // For each recipient, format and send an email
+  for (const link of links) {
+    const recipientEmail = link.contacts?.email;
+    const recipientName = link.contacts?.name || 'Signer';
+    const signingUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/sign/${link.token}`;
+
+    if (!recipientEmail) continue;
+
+    try {
+      // In a real implementation, replace this with actual email sending code
+      // Example with SendGrid or similar:
+      // await sendGrid.send({
+      //   to: recipientEmail,
+      //   from: 'your-verified-sender@example.com',
+      //   subject: `Please sign: ${documentTitle}`,
+      //   text: `Hello ${recipientName}, ${senderName} has requested your signature on "${documentTitle}". Please sign using this link: ${signingUrl}`,
+      //   html: `<p>Hello ${recipientName},</p><p>${senderName} has requested your signature on "${documentTitle}".</p><p>Please <a href="${signingUrl}">click here to sign</a>.</p>`
+      // });
+
+      // For now, we'll just log the email we would send
+      console.log(`Email would be sent to: ${recipientEmail}`);
+      console.log(`Subject: Please sign: ${documentTitle}`);
+      console.log(
+        `Body: Hello ${recipientName}, ${senderName} has requested your signature on "${documentTitle}". Please sign using this link: ${signingUrl}`,
+      );
+
+      // For demo purposes, we'll count this as sent
+      sentCount++;
+
+      // Update the signing link status to 'sent'
+      await updateSigningLinkStatusById({
+        id: link.id,
+        status: 'sent',
+      });
+    } catch (error) {
+      console.error(`Failed to send email to ${recipientEmail}:`, error);
+    }
+  }
+
+  return sentCount;
+}

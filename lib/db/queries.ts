@@ -1072,3 +1072,86 @@ export async function updateContactEmailsBatch({
     throw error;
   }
 }
+
+// Get all contact IDs associated with fields in a document
+export async function getDocumentFieldContacts({
+  documentId,
+  userId,
+}: {
+  documentId: string;
+  userId: string;
+}): Promise<{ contact_id: string }[]> {
+  const supabase = await createClient();
+  try {
+    const { data, error } = await supabase
+      .from('contract_fields')
+      .select('contact_id') // Select only the contact_id column
+      .eq('document_id', documentId)
+      .eq('user_id', userId); // Ensure user owns the fields
+
+    if (error) {
+      console.error('Error fetching contacts for document:', error);
+      throw error;
+    }
+    return data || [];
+  } catch (error) {
+    console.error('Error in getDocumentFieldContacts function:', error);
+    throw error;
+  }
+}
+
+// Get all signing links with associated contact information for a document
+export async function getSigningLinksWithContacts({
+  documentId,
+  userId,
+}: {
+  documentId: string;
+  userId: string;
+}) {
+  const supabase = await createClient();
+  try {
+    const { data, error } = await supabase
+      .from('signing_links')
+      .select('*, contacts(id, name, email)')
+      .eq('document_id', documentId)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error fetching signing links with contacts:', error);
+      throw error;
+    }
+    return data || [];
+  } catch (error) {
+    console.error('Error in getSigningLinksWithContacts function:', error);
+    throw error;
+  }
+}
+
+// Update a signing link status
+export async function updateSigningLinkStatusById({
+  id,
+  status,
+}: {
+  id: string;
+  status: SigningLink['status'];
+}) {
+  const supabase = await createClient();
+  try {
+    const { error } = await supabase
+      .from('signing_links')
+      .update({
+        status,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id);
+
+    if (error) {
+      console.error(`Error updating status for signing link ID ${id}:`, error);
+      throw error;
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('Error in updateSigningLinkStatusById:', error);
+    throw error;
+  }
+}

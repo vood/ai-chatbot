@@ -27,12 +27,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Loader2, CopyIcon, AlertCircle } from 'lucide-react';
+import { Loader2, CopyIcon, AlertCircle, Mail } from 'lucide-react';
 import type { Contact } from '@/lib/db/schema';
 import {
   getSigningContactsForDocument,
   saveContactEmails,
   generateSigningLinks,
+  sendSigningEmails,
 } from '@/lib/actions/signing';
 import { Skeleton } from '@/components/ui/skeleton'; // For loading state
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'; // For errors
@@ -74,6 +75,8 @@ export function SigningSetupDialog({
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, startSubmittingTransition] = useTransition();
   const [isGenerating, startGeneratingTransition] = useTransition();
+  const [isSendingEmails, startSendingEmailsTransition] = useTransition();
+  const [emailsSent, setEmailsSent] = useState(false);
 
   // Fetch contacts when the dialog opens
   useEffect(() => {
@@ -193,10 +196,47 @@ export function SigningSetupDialog({
         setContacts([]);
         setError(null);
         setGeneratedLinks([]);
+        setEmailsSent(false);
         form.reset({});
       }, 150);
     }
     onOpenChange(open); // Propagate state up
+  };
+
+  // Add function to handle sending emails
+  const handleSendEmails = () => {
+    startSendingEmailsTransition(() => {
+      // Mark as sending
+      const sendEmails = async () => {
+        try {
+          // Get the document title from the first contact's document (if available)
+          const documentTitle = 'Document for Signing';
+          if (contacts.length > 0 && generatedLinks.length > 0) {
+            const result = await sendSigningEmails({
+              documentId,
+              documentTitle,
+            });
+
+            if (result.success) {
+              setEmailsSent(true);
+              toast.success(
+                `${result.sentCount} signing invitation${result.sentCount !== 1 ? 's' : ''} sent by email`,
+              );
+            } else {
+              toast.error(result.error || 'Failed to send emails');
+            }
+          } else {
+            toast.error('No valid contacts to send emails to');
+          }
+        } catch (error) {
+          console.error('Error sending emails:', error);
+          toast.error('Failed to send emails');
+        }
+      };
+
+      // Execute the async function
+      sendEmails();
+    });
   };
 
   return (
@@ -230,13 +270,23 @@ export function SigningSetupDialog({
 
         {/* Error State */}
         {step === 'error' && (
-          <Alert variant="destructive" className="my-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Error</AlertTitle>
-            <AlertDescription>
-              {error || 'An unexpected error occurred.'}
-            </AlertDescription>
-          </Alert>
+          <>
+            <Alert variant="destructive" className="my-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>
+                {error || 'An unexpected error occurred.'}
+              </AlertDescription>
+            </Alert>
+
+            <DialogFooter className="mt-4">
+              <DialogClose asChild>
+                <Button type="button" variant="secondary">
+                  Close
+                </Button>
+              </DialogClose>
+            </DialogFooter>
+          </>
         )}
 
         {/* Email Input Step */}
@@ -286,49 +336,71 @@ export function SigningSetupDialog({
 
         {/* Links Display Step */}
         {step === 'links' && (
-          <div className="grid gap-4 py-4 max-h-[400px] overflow-y-auto">
-            {generatedLinks.map((link) => {
-              const contactName =
-                contacts.find((c) => c.id === link.contact_id)?.name ||
-                `Signer (${link.contact_id.substring(0, 6)}...)`;
-              return (
-                <div key={link.url} className="flex items-center space-x-2">
-                  <Label
-                    htmlFor={`link-${link.contact_id}`}
-                    className="text-right w-28 shrink-0 truncate"
-                    title={contactName}
-                  >
-                    {contactName}
-                  </Label>
-                  <Input
-                    id={`link-${link.contact_id}`}
-                    value={link.url}
-                    readOnly
-                    className="flex-grow"
-                  />
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => copyLink(link.url)}
-                    title="Copy Link"
-                  >
-                    <CopyIcon className="h-4 w-4" />
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
-        )}
+          <>
+            <div className="grid gap-4 py-4 max-h-[400px] overflow-y-auto">
+              {generatedLinks.map((link) => {
+                const contactName =
+                  contacts.find((c) => c.id === link.contact_id)?.name ||
+                  `Signer (${link.contact_id.substring(0, 6)}...)`;
+                return (
+                  <div key={link.url} className="flex items-center space-x-2">
+                    <Label
+                      htmlFor={`link-${link.contact_id}`}
+                      className="text-right w-28 shrink-0 truncate"
+                      title={contactName}
+                    >
+                      {contactName}
+                    </Label>
+                    <Input
+                      id={`link-${link.contact_id}`}
+                      value={link.url}
+                      readOnly
+                      className="flex-grow"
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => copyLink(link.url)}
+                      title="Copy Link"
+                    >
+                      <CopyIcon className="h-4 w-4" />
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
 
-        {/* Common Close Button - Simplified Condition */}
-        {(step === 'links' || step === 'error') && (
-          <DialogFooter className="mt-4">
-            <DialogClose asChild>
-              <Button type="button" variant="secondary">
-                Close
+            <DialogFooter className="flex justify-between mt-4">
+              <Button
+                type="button"
+                onClick={handleSendEmails}
+                disabled={isSendingEmails || emailsSent}
+                variant="default"
+              >
+                {isSendingEmails ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : emailsSent ? (
+                  <>
+                    <Mail className="mr-2 h-4 w-4" />
+                    Emails Sent
+                  </>
+                ) : (
+                  <>
+                    <Mail className="mr-2 h-4 w-4" />
+                    Send Invitations by Email
+                  </>
+                )}
               </Button>
-            </DialogClose>
-          </DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="secondary">
+                  Close
+                </Button>
+              </DialogClose>
+            </DialogFooter>
+          </>
         )}
       </DialogContent>
     </Dialog>

@@ -61,7 +61,7 @@ export interface SigningLink {
   document_id: string;
   contact_id: string;
   user_id: string;
-  status: 'pending' | 'viewed' | 'completed' | 'expired'; // Define allowed statuses
+  status: 'pending' | 'viewed' | 'completed' | 'expired' | 'sent'; // Updated to include 'sent'
   expires_at?: string | null;
   created_at: string;
   updated_at: string;
