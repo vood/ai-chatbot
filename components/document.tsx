@@ -4,12 +4,15 @@ import type { ArtifactKind } from './artifact';
 import { FileIcon, LoaderIcon, MessageIcon, PencilEditIcon } from './icons';
 import { toast } from 'sonner';
 import { useArtifact } from '@/hooks/use-artifact';
-import { AlertTriangleIcon } from 'lucide-react';
+import { AlertTriangleIcon, FormInput } from 'lucide-react';
 
-const getActionText = (
-  type: 'create' | 'update' | 'request-suggestions',
-  tense: 'present' | 'past',
-) => {
+type DocumentToolType =
+  | 'create'
+  | 'update'
+  | 'request-suggestions'
+  | 'request-fields';
+
+const getActionText = (type: DocumentToolType, tense: 'present' | 'past') => {
   switch (type) {
     case 'create':
       return tense === 'present' ? 'Creating' : 'Created';
@@ -19,13 +22,15 @@ const getActionText = (
       return tense === 'present'
         ? 'Adding suggestions'
         : 'Added suggestions to';
+    case 'request-fields':
+      return tense === 'present' ? 'Adding fields' : 'Added fields to';
     default:
       return null;
   }
 };
 
 interface DocumentToolResultProps {
-  type: 'create' | 'update' | 'request-suggestions';
+  type: DocumentToolType;
   result: { id: string; title: string; kind: ArtifactKind; error?: string };
   isReadonly: boolean;
 }
@@ -91,6 +96,8 @@ function PureDocumentToolResult({
           <PencilEditIcon />
         ) : type === 'request-suggestions' ? (
           <MessageIcon />
+        ) : type === 'request-fields' ? (
+          <FormInput size={18} />
         ) : null}
       </div>
       <div className="text-left">
@@ -103,7 +110,7 @@ function PureDocumentToolResult({
 export const DocumentToolResult = memo(PureDocumentToolResult, () => true);
 
 interface DocumentToolCallProps {
-  type: 'create' | 'update' | 'request-suggestions';
+  type: DocumentToolType;
   args: { title: string };
   isReadonly: boolean;
 }
@@ -151,6 +158,8 @@ function PureDocumentToolCall({
             <PencilEditIcon />
           ) : type === 'request-suggestions' ? (
             <MessageIcon />
+          ) : type === 'request-fields' ? (
+            <FormInput size={18} />
           ) : null}
         </div>
 

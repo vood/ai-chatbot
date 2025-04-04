@@ -181,6 +181,12 @@ const PurePreviewMessage = ({
                           args={args}
                           isReadonly={isReadonly}
                         />
+                      ) : toolName === 'requestContractFields' ? (
+                        <DocumentToolCall
+                          type="request-fields"
+                          args={args}
+                          isReadonly={isReadonly}
+                        />
                       ) : null}
                     </div>
                   );
@@ -209,6 +215,12 @@ const PurePreviewMessage = ({
                       ) : toolName === 'requestSuggestions' ? (
                         <DocumentToolResult
                           type="request-suggestions"
+                          result={result}
+                          isReadonly={isReadonly}
+                        />
+                      ) : toolName === 'requestContractFields' ? (
+                        <DocumentToolResult
+                          type="request-fields"
                           result={result}
                           isReadonly={isReadonly}
                         />
