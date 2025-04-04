@@ -2,8 +2,9 @@
 
 import type { User } from 'next-auth';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
-import { PlusIcon } from '@/components/icons';
+import { PlusIcon, SparklesIcon } from '@/components/icons';
 import { SidebarHistory } from '@/components/sidebar-history';
 import { SidebarUserNav } from '@/components/sidebar-user-nav';
 import { Button } from '@/components/ui/button';
@@ -13,9 +14,12 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarGroup,
+  SidebarGroupContent,
   useSidebar,
 } from '@/components/ui/sidebar';
-import Link from 'next/link';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
 export function AppSidebar({ user }: { user: User | undefined }) {
@@ -59,6 +63,27 @@ export function AppSidebar({ user }: { user: User | undefined }) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
+        {user && (
+          <SidebarGroup>
+            <div className="px-2 py-1 text-xs text-sidebar-foreground/50 flex items-center">
+              Quick Links
+            </div>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link href="/prompts" onClick={() => setOpenMobile(false)}>
+                      <div className="flex items-center gap-2">
+                        <SparklesIcon size={16} />
+                        <span>Prompts</span>
+                      </div>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
         <SidebarHistory user={user} />
       </SidebarContent>
       <SidebarFooter>{user && <SidebarUserNav user={user} />}</SidebarFooter>

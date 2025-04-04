@@ -108,40 +108,44 @@ export async function POST(request: Request) {
 
     return createDataStreamResponse({
       execute: (dataStream) => {
+        const tools = {
+          getWeather,
+          createDocument: createDocument({ user: user, dataStream }),
+          updateDocument: updateDocument({ user: user, dataStream }),
+          requestContractFields: requestContractFields({
+            user: user,
+            dataStream,
+          }),
+          requestSuggestions: requestSuggestions({
+            user: user,
+            dataStream,
+          }),
+          webSearch: webSearch,
+          sendDocumentForSigning: sendDocumentForSigning({
+            user: user,
+            dataStream,
+          }),
+        };
+
+        const selectedTools: (keyof typeof tools)[] = [
+          'getWeather',
+          'createDocument',
+          'updateDocument',
+          'requestContractFields',
+          'requestSuggestions',
+          'webSearch',
+          'sendDocumentForSigning',
+        ];
+
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
           system: systemPrompt({ selectedChatModel }),
           messages: convertToCoreMessages(messages),
           maxSteps: 5,
-          experimental_activeTools: [
-            'getWeather',
-            'createDocument',
-            'updateDocument',
-            'requestSuggestions',
-            'requestContractFields',
-            'webSearch',
-            'sendDocumentForSigning',
-          ],
+          experimental_activeTools: selectedTools,
           experimental_transform: smoothStream({ chunking: 'word' }),
           experimental_generateMessageId: generateUUID,
-          tools: {
-            getWeather,
-            createDocument: createDocument({ user: user, dataStream }),
-            updateDocument: updateDocument({ user: user, dataStream }),
-            requestContractFields: requestContractFields({
-              user: user,
-              dataStream,
-            }),
-            requestSuggestions: requestSuggestions({
-              user: user,
-              dataStream,
-            }),
-            webSearch: webSearch,
-            sendDocumentForSigning: sendDocumentForSigning({
-              user: user,
-              dataStream,
-            }),
-          },
+          tools: tools,
           onFinish: async ({ response }) => {
             if (user.id) {
               try {

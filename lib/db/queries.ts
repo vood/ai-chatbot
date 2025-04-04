@@ -1155,3 +1155,140 @@ export async function updateSigningLinkStatusById({
     throw error;
   }
 }
+
+// --- Prompt Queries ---
+
+// Get prompts for the current user
+export async function getPromptsByUserId({
+  userId,
+}: {
+  userId: string;
+}): Promise<Tables<'prompts'>[]> {
+  const supabase = await createClient();
+  try {
+    const { data, error } = await supabase
+      .from('prompts')
+      .select('*')
+      .eq('user_id', userId)
+      .order('updated_at', { ascending: false, nullsFirst: false });
+
+    if (error) {
+      console.error('Failed to get prompts by user from database:', error);
+      throw error;
+    }
+    return data || [];
+  } catch (error) {
+    console.error('Error in getPromptsByUserId function:', error);
+    throw error;
+  }
+}
+
+// Create a new prompt
+export async function createPrompt({
+  name,
+  content,
+  userId,
+}: {
+  name: string;
+  content: string;
+  userId: string;
+}): Promise<Tables<'prompts'>> {
+  const supabase = await createClient();
+  try {
+    const { data, error } = await supabase
+      .from('prompts')
+      .insert({
+        name,
+        content,
+        user_id: userId,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Failed to create prompt in database:', error);
+      throw error;
+    }
+    return data;
+  } catch (error) {
+    console.error('Error in createPrompt function:', error);
+    throw error;
+  }
+}
+
+// Update an existing prompt
+export async function updatePrompt({
+  id,
+  name,
+  content,
+  userId,
+}: {
+  id: string;
+  name: string;
+  content: string;
+  userId: string;
+}): Promise<Tables<'prompts'>> {
+  const supabase = await createClient();
+  try {
+    // First check if the prompt exists and belongs to the user
+    const { data: existingPrompt, error: findError } = await supabase
+      .from('prompts')
+      .select('id')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+
+    if (findError || !existingPrompt) {
+      console.error('Prompt not found or permission denied:', findError);
+      throw new Error('Prompt not found or permission denied');
+    }
+
+    const { data, error } = await supabase
+      .from('prompts')
+      .update({
+        name,
+        content,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Failed to update prompt in database:', error);
+      throw error;
+    }
+    return data;
+  } catch (error) {
+    console.error('Error in updatePrompt function:', error);
+    throw error;
+  }
+}
+
+// Delete a prompt
+export async function deletePrompt({
+  id,
+  userId,
+}: {
+  id: string;
+  userId: string;
+}): Promise<{ success: boolean }> {
+  const supabase = await createClient();
+  try {
+    const { error } = await supabase
+      .from('prompts')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Failed to delete prompt from database:', error);
+      throw error;
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('Error in deletePrompt function:', error);
+    throw error;
+  }
+}

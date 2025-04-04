@@ -12,6 +12,7 @@ import { MultimodalInput } from './multimodal-input';
 import { Messages } from './messages';
 import type { VisibilityType } from './visibility-selector';
 import { useArtifactSelector } from '@/hooks/use-artifact';
+import { PromptProvider } from '@/hooks/use-prompt';
 import { toast } from 'sonner';
 
 export function Chat({
@@ -62,8 +63,12 @@ export function Chat({
   const [attachments, setAttachments] = useState<Array<Attachment>>([]);
   const isArtifactVisible = useArtifactSelector((state) => state.isVisible);
 
+  const handleApplyPrompt = (content: string) => {
+    setInput(content);
+  };
+
   return (
-    <>
+    <PromptProvider onApplyPrompt={handleApplyPrompt}>
       <div className="flex flex-col min-w-0 h-dvh bg-background">
         <ChatHeader
           chatId={id}
@@ -120,6 +125,6 @@ export function Chat({
         votes={votes || []}
         isReadonly={isReadonly}
       />
-    </>
+    </PromptProvider>
   );
 }

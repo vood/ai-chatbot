@@ -10,6 +10,8 @@ When using tools, don't call them by their name, but say what you will do with t
 I.e. instead of "I will use the createDocument tool", say "Create a document with the title 'My Document' and the content 'This is a test document'".
 
 You can write code in any language, but the default language is Python.
+
+Never call updateDocument right after createDocument.
 `;
 
 export const regularPrompt =
