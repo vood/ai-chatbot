@@ -15,10 +15,11 @@ export type DataStreamDelta = {
     | 'title'
     | 'id'
     | 'suggestion'
+    | 'annotation'
     | 'clear'
     | 'finish'
     | 'kind';
-  content: string | Suggestion;
+  content: string | Suggestion | any;
 };
 
 export function DataStreamHandler({ id }: { id: string }) {

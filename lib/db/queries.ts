@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { createClient, auth } from '@/lib/supabase/server';
-import type { Tables, } from '@/supabase/types';
+import type { Tables } from '@/supabase/types';
 import type { ArtifactKind } from '@/components/artifact';
 import type {
   Chat,
@@ -13,6 +13,10 @@ import type {
   DocumentInsert,
   SuggestionInsert,
   Vote,
+  ContractField,
+  ContractFieldInsert,
+  Contact,
+  ContactInsert,
 } from '@/lib/db/schema';
 
 // Define concrete types based on schema
@@ -568,6 +572,163 @@ export async function voteMessage({
     return { success: true };
   } catch (error) {
     console.error('Error in voteMessage function:', error);
+    throw error;
+  }
+}
+
+export async function saveContractFields({
+  contractFields,
+}: {
+  contractFields: Array<ContractFieldInsert>;
+}) {
+  const supabase = await createClient();
+  try {
+    const { error } = await supabase
+      .from('contract_fields')
+      .insert(contractFields);
+    if (error) {
+      console.error('Failed to save contract fields in database:', error);
+      throw error;
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('Error in saveContractFields function:', error);
+    throw error;
+  }
+}
+
+export async function getContractFieldsByDocumentId({
+  documentId,
+  userId,
+}: {
+  documentId: string;
+  userId?: string;
+}): Promise<ContractField[]> {
+  const supabase = await createClient();
+  try {
+    let query = supabase
+      .from('contract_fields')
+      .select('*')
+      .eq('document_id', documentId);
+
+    // Add user_id filter if provided
+    if (userId) {
+      query = query.eq('user_id', userId);
+    }
+
+    const { data, error } = await query.order('created_at', {
+      ascending: true,
+    });
+
+    if (error) {
+      console.error(
+        'Failed to get contract fields by document id from database:',
+        error,
+      );
+      throw error;
+    }
+    return data || [];
+  } catch (error) {
+    console.error('Error in getContractFieldsByDocumentId function:', error);
+    throw error;
+  }
+}
+
+export async function getContractFieldsByContactId({
+  contactId,
+  userId,
+}: {
+  contactId: string;
+  userId?: string;
+}): Promise<ContractField[]> {
+  const supabase = await createClient();
+  try {
+    let query = supabase
+      .from('contract_fields')
+      .select('*')
+      .eq('contact_id', contactId);
+
+    // Add user_id filter if provided
+    if (userId) {
+      query = query.eq('user_id', userId);
+    }
+
+    const { data, error } = await query.order('created_at', {
+      ascending: true,
+    });
+
+    if (error) {
+      console.error(
+        'Failed to get contract fields by contact id from database:',
+        error,
+      );
+      throw error;
+    }
+    return data || [];
+  } catch (error) {
+    console.error('Error in getContractFieldsByContactId function:', error);
+    throw error;
+  }
+}
+
+export async function updateContractField({
+  id,
+  fieldValue,
+  isFilled = true,
+  userId,
+}: {
+  id: string;
+  fieldValue: string;
+  isFilled?: boolean;
+  userId: string;
+}) {
+  const supabase = await createClient();
+  try {
+    const { error } = await supabase
+      .from('contract_fields')
+      .update({
+        field_value: fieldValue,
+        is_filled: isFilled,
+        user_id: userId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Failed to update contract field in database:', error);
+      throw error;
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('Error in updateContractField function:', error);
+    throw error;
+  }
+}
+
+export async function updateDocumentContent({
+  id,
+  content,
+}: {
+  id: string;
+  content: string;
+}) {
+  const supabase = await createClient();
+  try {
+    const { error } = await supabase
+      .from('documents')
+      .update({
+        content,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Failed to update document content in database:', error);
+      throw error;
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('Error in updateDocumentContent function:', error);
     throw error;
   }
 }

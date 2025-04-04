@@ -24,14 +24,14 @@ export const myProvider = isTestEnvironment
     })
   : customProvider({
       languageModels: {
-        'chat-model': openrouter('anthropic/claude-3.7-sonnet'),
+        'chat-model': openrouter('openai/gpt-4o'),
         'chat-model-reasoning': wrapLanguageModel({
-          model: openrouter('anthropic/claude-3.7-sonnet:thinking'),
+          model: openrouter('openai/o3-mini'),
           middleware: extractReasoningMiddleware({ tagName: 'think' }),
         }),
-        'chat-websearch': openrouter('anthropic/claude-3.7-sonnet:search'),
-        'title-model': openrouter('anthropic/claude-3.5-haiku'),
-        'artifact-model': openrouter('anthropic/claude-3.7-sonnet'),
+        'chat-websearch': openrouter('openai/gpt-4o:search'),
+        'title-model': openrouter('openai/gpt-4o-mini'),
+        'artifact-model': openrouter('openai/gpt-4o'),
       },
       imageModels: {
         'small-model': openai.image('dall-e-3'),

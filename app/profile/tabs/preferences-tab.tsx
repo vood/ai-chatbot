@@ -27,11 +27,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Slider } from '@/components/ui/slider';
 
 const preferencesFormSchema = z.object({
-  send_message_on_enter: z.boolean().default(true),
-  experimental_code_editor: z.boolean().default(false),
-  workspace_migration_enabled: z.boolean().default(false),
+  send_message_on_enter: z.boolean(),
+  experimental_code_editor: z.boolean(),
+  workspace_migration_enabled: z.boolean(),
   system_prompt_template: z.string().optional(),
-  large_text_paste_threshold: z.number().min(0).max(100000).default(5000),
+  large_text_paste_threshold: z.number().min(0).max(100000),
 });
 
 type PreferencesFormValues = z.infer<typeof preferencesFormSchema>;
@@ -40,7 +40,7 @@ export default function PreferencesTab() {
   const [isLoading, setIsLoading] = useState(false);
 
   // This would normally be populated from your API/database
-  const defaultValues: Partial<PreferencesFormValues> = {
+  const defaultValues: PreferencesFormValues = {
     send_message_on_enter: true,
     experimental_code_editor: false,
     workspace_migration_enabled: false,
@@ -49,7 +49,9 @@ export default function PreferencesTab() {
   };
 
   const form = useForm<PreferencesFormValues>({
-    resolver: zodResolver(preferencesFormSchema),
+    resolver: zodResolver<PreferencesFormValues, any, PreferencesFormValues>(
+      preferencesFormSchema,
+    ),
     defaultValues,
     mode: 'onChange',
   });

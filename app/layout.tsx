@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import { ThemeProvider } from '@/components/theme-provider';
 
 import './globals.css';
+import Script from 'next/script';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://chat.vercel.ai'),
@@ -63,7 +64,10 @@ export default async function RootLayout({
       className={`${geist.variable} ${geistMono.variable}`}
     >
       <head>
-        <script src="https://cdn.jsdelivr.net/pyodide/v0.27.4/full/pyodide.js" />
+        <Script
+          src="https://cdn.jsdelivr.net/pyodide/v0.27.4/full/pyodide.js"
+          strategy="beforeInteractive"
+        />
         <script
           dangerouslySetInnerHTML={{
             __html: THEME_COLOR_SCRIPT,

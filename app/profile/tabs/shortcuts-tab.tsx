@@ -17,11 +17,11 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 
 const shortcutsFormSchema = z.object({
-  send_message_on_enter: z.boolean().default(true),
-  assistant_command: z.string().default('@'),
-  plugins_command: z.string().default('!'),
-  prompt_command: z.string().default('/'),
-  files_command: z.string().default('#'),
+  send_message_on_enter: z.boolean(),
+  assistant_command: z.string(),
+  plugins_command: z.string(),
+  prompt_command: z.string(),
+  files_command: z.string(),
 });
 
 type ShortcutsFormValues = z.infer<typeof shortcutsFormSchema>;
@@ -39,7 +39,9 @@ export default function ShortcutsTab() {
   };
 
   const form = useForm<ShortcutsFormValues>({
-    resolver: zodResolver(shortcutsFormSchema),
+    resolver: zodResolver<ShortcutsFormValues, any, ShortcutsFormValues>(
+      shortcutsFormSchema,
+    ),
     defaultValues,
     mode: 'onChange',
   });

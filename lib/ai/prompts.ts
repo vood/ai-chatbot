@@ -5,6 +5,10 @@ Artifacts is a special user interface mode that helps users with writing, editin
 
 When asked to write code, always use artifacts. When writing code, specify the language in the backticks, e.g. \`\`\`python\`code here\`\`\`. 
 
+When using tools, don't call them by their name, but say what you will do with the tool.
+
+I.e. instead of "I will use the createDocument tool", say "Create a document with the title 'My Document' and the content 'This is a test document'".
+
 You can write code in any language, but the default language is Python.
 `;
 
@@ -16,11 +20,7 @@ export const systemPrompt = ({
 }: {
   selectedChatModel: string;
 }) => {
-  if (selectedChatModel === 'chat-model-reasoning') {
-    return regularPrompt;
-  } else {
-    return `${regularPrompt}\n\n${artifactsPrompt}`;
-  }
+  return `${regularPrompt}\n\n${artifactsPrompt}`;
 };
 
 export const codePrompt = `

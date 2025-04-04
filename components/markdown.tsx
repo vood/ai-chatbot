@@ -8,6 +8,20 @@ const components: Partial<Components> = {
   // @ts-expect-error
   code: CodeBlock,
   pre: ({ children }) => <>{children}</>,
+  p: ({ children }) => {
+    // Check if any of the children are pre elements
+    const hasPreChild = React.Children.toArray(children).some(
+      (child) => React.isValidElement(child) && child.type === 'pre',
+    );
+
+    // If a paragraph has a pre child, render the children directly without the p wrapper
+    if (hasPreChild) {
+      return <>{children}</>;
+    }
+
+    // Otherwise, render a normal paragraph
+    return <p>{children}</p>;
+  },
   ol: ({ node, children, ...props }) => {
     return (
       <ol className="list-decimal list-outside ml-4" {...props}>

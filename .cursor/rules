@@ -1,0 +1,52 @@
+# Cursor Rules for AI Integration
+
+# Model Settings
+model = "claude-3-5-sonnet-20240620"
+temperature = 0.2
+max_tokens = 4000
+
+# File Handling Rules
+ignore_dirs = ["node_modules", ".next", ".git"]
+code_language_map = {
+  "tsx": "typescript",
+  "ts": "typescript",
+  "jsx": "javascript",
+  "js": "javascript",
+  "sql": "sql",
+  "css": "css",
+  "md": "markdown",
+  "json": "json"
+}
+
+# AI Prompting Guidelines
+system_prompt = """
+You are an AI assistant helping with an AI chatbot project that handles document management and contracts.
+Key features of this project:
+- Next.js and React for frontend
+- Supabase for database and auth
+- AI integration through Vercel AI SDK
+- Shadcn UI components
+- Document and contract management features
+
+Prioritize:
+1. Following existing code patterns and conventions
+2. Writing clean, type-safe code
+3. Using existing components when available
+4. Not introducing new dependencies unnecessarily
+"""
+
+# AI Command Context Rules
+context_lines_before = 20
+context_lines_after = 20
+always_include_imports = true
+use_complete_file_context_for_small_files = true
+small_file_threshold = 200 # lines
+
+# Feature-Specific AI Support
+support_features = [
+  "contract_field_management",
+  "document_processing",
+  "ai_chat_integration",
+  "supabase_schema_suggestions",
+  "typescript_type_assistance"
+] 

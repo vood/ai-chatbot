@@ -27,6 +27,14 @@ import { sheetArtifact } from '@/artifacts/sheet/client';
 import { textArtifact } from '@/artifacts/text/client';
 import equal from 'fast-deep-equal';
 import type { UseChatHelpers } from '@ai-sdk/react';
+import type { DocumentAnnotationPosition } from '@/lib/ai/tools/request-contract-fields';
+
+// Define the document annotation interface
+export interface DocumentAnnotation<T> {
+  id: string;
+  type: string;
+  data: T; // Generic data format, will be typed by consumers
+}
 
 export const artifactDefinitions = [
   textArtifact,
@@ -49,10 +57,55 @@ export interface UIArtifact {
     width: number;
     height: number;
   };
+  annotations?: DocumentAnnotation[]; // Added annotations property
+}
+
+// Helper function to find annotation position in text
+export function findAnnotationPosition(
+  text: string,
+  position: DocumentAnnotationPosition,
+): { start: number; end: number } | null {
+  try {
+    // Create a regex pattern that escapes special characters
+    const escapeRegExp = (str: string) =>
+      str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    // Build pattern with prefix, placeholder, and suffix
+    const pattern =
+      escapeRegExp(position.prefix) +
+      escapeRegExp(position.placeholder) +
+      escapeRegExp(position.suffix);
+
+    const regex = new RegExp(pattern);
+    const match = regex.exec(text);
+
+    if (match) {
+      const start = match.index + position.prefix.length;
+      const end = start + position.placeholder.length;
+      return { start, end };
+    }
+
+    // Fallback: try to find just the placeholder
+    const placeholderMatch = new RegExp(
+      escapeRegExp(position.placeholder),
+    ).exec(text);
+    if (placeholderMatch) {
+      return {
+        start: placeholderMatch.index,
+        end: placeholderMatch.index + position.placeholder.length,
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Error finding annotation position:', error);
+    return null;
+  }
 }
 
 function PureArtifact({
   chatId,
+  selectedChatModel,
   input,
   votes,
   setInput,
@@ -70,6 +123,7 @@ function PureArtifact({
   chatId: string;
   input: string;
   votes: Vote[];
+  selectedChatModel: string;
   setInput: UseChatHelpers['setInput'];
   status: UseChatHelpers['status'];
   stop: UseChatHelpers['stop'];
@@ -83,6 +137,7 @@ function PureArtifact({
   isReadonly: boolean;
 }) {
   const { artifact, setArtifact, metadata, setMetadata } = useArtifact();
+  const [annotations, setAnnotations] = useState<DocumentAnnotation<any>[]>([]);
 
   const {
     data: documents,
@@ -100,6 +155,53 @@ function PureArtifact({
   const [currentVersionIndex, setCurrentVersionIndex] = useState(-1);
 
   const { open: isSidebarOpen } = useSidebar();
+
+  // Effect to handle incoming document annotations from messages
+  useEffect(() => {
+    // Extract document annotations from the messages
+    if (messages.length > 0) {
+      const newAnnotations: DocumentAnnotation<any>[] = [];
+
+      messages.forEach((message) => {
+        if (message.content && typeof message.content === 'object') {
+          const content = message.content as Record<string, any>;
+
+          // Check for documentAnnotation type
+          if (content.type === 'annotation') {
+            newAnnotations.push({
+              id: content.data?.id || crypto.randomUUID(),
+              type: content.content?.type || 'unknown',
+              data: content.content?.data,
+            });
+          }
+        }
+      });
+
+      if (newAnnotations.length > 0) {
+        setAnnotations((prev) => {
+          // Merge with existing annotations, replace if same ID
+          const merged = [...prev];
+          newAnnotations.forEach((newAnnotation) => {
+            const existingIndex = merged.findIndex(
+              (a) => a.id === newAnnotation.id,
+            );
+            if (existingIndex >= 0) {
+              merged[existingIndex] = newAnnotation;
+            } else {
+              merged.push(newAnnotation);
+            }
+          });
+          return merged;
+        });
+
+        // Update the artifact with annotations
+        setArtifact((prev) => ({
+          ...prev,
+          annotations: annotations,
+        }));
+      }
+    }
+  }, [messages, setArtifact]);
 
   useEffect(() => {
     if (documents && documents.length > 0) {
@@ -323,6 +425,7 @@ function PureArtifact({
 
                 <form className="flex flex-row gap-2 relative items-end w-full px-4 pb-4">
                   <MultimodalInput
+                    selectedChatModel={selectedChatModel}
                     chatId={chatId}
                     input={input}
                     setInput={setInput}
@@ -465,6 +568,7 @@ function PureArtifact({
                 isLoading={isDocumentsFetching && !artifact.content}
                 metadata={metadata}
                 setMetadata={setMetadata}
+                annotations={annotations}
               />
 
               <AnimatePresence>
@@ -502,7 +606,8 @@ export const Artifact = memo(PureArtifact, (prevProps, nextProps) => {
   if (prevProps.status !== nextProps.status) return false;
   if (!equal(prevProps.votes, nextProps.votes)) return false;
   if (prevProps.input !== nextProps.input) return false;
-  if (!equal(prevProps.messages, nextProps.messages.length)) return false;
+  if (prevProps.selectedChatModel !== nextProps.selectedChatModel) return false;
+  if (!equal(prevProps.messages, nextProps.messages)) return false;
 
   return true;
 });

@@ -28,6 +28,7 @@ import { isProductionEnvironment } from '@/lib/constants';
 import { myProvider } from '@/lib/ai/providers';
 import type { Json } from '@/supabase/types';
 import webSearch from '@/lib/ai/tools/web-search';
+import { requestContractFields } from '@/lib/ai/tools';
 
 export const maxDuration = 60;
 
@@ -116,6 +117,7 @@ export async function POST(request: Request) {
             'createDocument',
             'updateDocument',
             'requestSuggestions',
+            'requestContractFields',
             'webSearch',
           ],
           experimental_transform: smoothStream({ chunking: 'word' }),
@@ -124,6 +126,10 @@ export async function POST(request: Request) {
             getWeather,
             createDocument: createDocument({ user: user, dataStream }),
             updateDocument: updateDocument({ user: user, dataStream }),
+            requestContractFields: requestContractFields({
+              user: user,
+              dataStream,
+            }),
             requestSuggestions: requestSuggestions({
               user: user,
               dataStream,

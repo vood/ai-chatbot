@@ -104,6 +104,7 @@ export function Chat({
       </div>
 
       <Artifact
+        selectedChatModel={selectedChatModel}
         chatId={id}
         input={input}
         setInput={setInput}

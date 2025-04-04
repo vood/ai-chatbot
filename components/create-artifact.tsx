@@ -2,7 +2,7 @@ import type { Suggestion } from '@/lib/db/schema';
 import type { UseChatHelpers } from '@ai-sdk/react';
 import type { ComponentType, Dispatch, ReactNode, SetStateAction } from 'react';
 import type { DataStreamDelta } from './data-stream-handler';
-import type { UIArtifact } from './artifact';
+import type { UIArtifact, DocumentAnnotation } from './artifact';
 
 export type ArtifactActionContext<M = any> = {
   content: string;
@@ -46,6 +46,7 @@ interface ArtifactContent<M = any> {
   isLoading: boolean;
   metadata: M;
   setMetadata: Dispatch<SetStateAction<M>>;
+  annotations?: DocumentAnnotation[];
 }
 
 interface InitializeParameters<M = any> {

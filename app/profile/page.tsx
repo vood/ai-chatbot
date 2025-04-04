@@ -1,26 +1,26 @@
-import { Settings } from "lucide-react"
-import type { Metadata } from "next"
-import ProfileTab from "./tabs/profile-tab"
-import ShortcutsTab from "./tabs/shortcuts-tab"
-import MyDataTab from "./tabs/my-data-tab"
-import WorkspaceSettingsTab from "./tabs/workspace-settings-tab"
-import TeamTab from "./tabs/team-tab"
-import BillingTab from "./tabs/billing-tab"
-import AppsSettingsTab from "./tabs/apps-settings-tab"
-import ApiKeysTab from "./tabs/api-keys-tab"
-import PluginsTab from "./tabs/plugins-tab"
+import { Settings } from 'lucide-react';
+import type { Metadata } from 'next';
+import ProfileTab from './tabs/profile-tab';
+import ShortcutsTab from './tabs/shortcuts-tab';
+import MyDataTab from './tabs/my-data-tab';
+import WorkspaceSettingsTab from './tabs/workspace-settings-tab';
+import TeamTab from './tabs/team-tab';
+import BillingTab from './tabs/billing-tab';
+import AppsSettingsTab from './tabs/apps-settings-tab';
+import ApiKeysTab from './tabs/api-keys-tab';
+import PluginsTab from './tabs/plugins-tab';
 
 export const metadata: Metadata = {
-  title: "Settings",
-  description: "Manage your profile settings and preferences",
-}
+  title: 'Settings',
+  description: 'Manage your profile settings and preferences',
+};
 
 export default async function ProfilePage({
   searchParams,
 }: {
-  searchParams: { tab?: string }
+  searchParams: Promise<{ tab?: string }>;
 }) {
-  const tab = (await searchParams).tab || "profile"
+  const tab = (await searchParams).tab || 'profile';
 
   return (
     <div className="flex h-screen flex-col">
@@ -36,7 +36,9 @@ export default async function ProfilePage({
             <a
               href="?tab=profile"
               className={`rounded-md px-3 py-2 text-sm font-medium ${
-                tab === "profile" ? "bg-background" : "text-muted-foreground hover:bg-background/50"
+                tab === 'profile'
+                  ? 'bg-background'
+                  : 'text-muted-foreground hover:bg-background/50'
               }`}
             >
               Profile Settings
@@ -44,7 +46,9 @@ export default async function ProfilePage({
             <a
               href="?tab=shortcuts"
               className={`rounded-md px-3 py-2 text-sm font-medium ${
-                tab === "shortcuts" ? "bg-background" : "text-muted-foreground hover:bg-background/50"
+                tab === 'shortcuts'
+                  ? 'bg-background'
+                  : 'text-muted-foreground hover:bg-background/50'
               }`}
             >
               Shortcuts
@@ -52,7 +56,9 @@ export default async function ProfilePage({
             <a
               href="?tab=my-data"
               className={`rounded-md px-3 py-2 text-sm font-medium ${
-                tab === "my-data" ? "bg-background" : "text-muted-foreground hover:bg-background/50"
+                tab === 'my-data'
+                  ? 'bg-background'
+                  : 'text-muted-foreground hover:bg-background/50'
               }`}
             >
               My Data
@@ -60,7 +66,9 @@ export default async function ProfilePage({
             <a
               href="?tab=workspace"
               className={`rounded-md px-3 py-2 text-sm font-medium ${
-                tab === "workspace" ? "bg-background" : "text-muted-foreground hover:bg-background/50"
+                tab === 'workspace'
+                  ? 'bg-background'
+                  : 'text-muted-foreground hover:bg-background/50'
               }`}
             >
               Workspace Settings
@@ -68,7 +76,9 @@ export default async function ProfilePage({
             <a
               href="?tab=team"
               className={`rounded-md px-3 py-2 text-sm font-medium ${
-                tab === "team" ? "bg-background" : "text-muted-foreground hover:bg-background/50"
+                tab === 'team'
+                  ? 'bg-background'
+                  : 'text-muted-foreground hover:bg-background/50'
               }`}
             >
               Team
@@ -76,7 +86,9 @@ export default async function ProfilePage({
             <a
               href="?tab=billing"
               className={`rounded-md px-3 py-2 text-sm font-medium ${
-                tab === "billing" ? "bg-background" : "text-muted-foreground hover:bg-background/50"
+                tab === 'billing'
+                  ? 'bg-background'
+                  : 'text-muted-foreground hover:bg-background/50'
               }`}
             >
               Billing and Plan
@@ -84,7 +96,9 @@ export default async function ProfilePage({
             <a
               href="?tab=apps"
               className={`rounded-md px-3 py-2 text-sm font-medium ${
-                tab === "apps" ? "bg-background" : "text-muted-foreground hover:bg-background/50"
+                tab === 'apps'
+                  ? 'bg-background'
+                  : 'text-muted-foreground hover:bg-background/50'
               }`}
             >
               Apps Settings
@@ -92,7 +106,9 @@ export default async function ProfilePage({
             <a
               href="?tab=api-keys"
               className={`rounded-md px-3 py-2 text-sm font-medium ${
-                tab === "api-keys" ? "bg-background" : "text-muted-foreground hover:bg-background/50"
+                tab === 'api-keys'
+                  ? 'bg-background'
+                  : 'text-muted-foreground hover:bg-background/50'
               }`}
             >
               API Keys
@@ -100,7 +116,9 @@ export default async function ProfilePage({
             <a
               href="?tab=plugins"
               className={`rounded-md px-3 py-2 text-sm font-medium ${
-                tab === "plugins" ? "bg-background" : "text-muted-foreground hover:bg-background/50"
+                tab === 'plugins'
+                  ? 'bg-background'
+                  : 'text-muted-foreground hover:bg-background/50'
               }`}
             >
               Plugins
@@ -108,18 +126,17 @@ export default async function ProfilePage({
           </div>
         </nav>
         <main className="flex-1 overflow-auto p-6">
-          {tab === "profile" && <ProfileTab />}
-          {tab === "shortcuts" && <ShortcutsTab />}
-          {tab === "my-data" && <MyDataTab />}
-          {tab === "workspace" && <WorkspaceSettingsTab />}
-          {tab === "team" && <TeamTab />}
-          {tab === "billing" && <BillingTab />}
-          {tab === "apps" && <AppsSettingsTab />}
-          {tab === "api-keys" && <ApiKeysTab />}
-          {tab === "plugins" && <PluginsTab />}
+          {tab === 'profile' && <ProfileTab />}
+          {tab === 'shortcuts' && <ShortcutsTab />}
+          {tab === 'my-data' && <MyDataTab />}
+          {tab === 'workspace' && <WorkspaceSettingsTab />}
+          {tab === 'team' && <TeamTab />}
+          {tab === 'billing' && <BillingTab />}
+          {tab === 'apps' && <AppsSettingsTab />}
+          {tab === 'api-keys' && <ApiKeysTab />}
+          {tab === 'plugins' && <PluginsTab />}
         </main>
       </div>
     </div>
-  )
+  );
 }
-
