@@ -224,6 +224,18 @@ const PurePreviewMessage = ({
                           result={result}
                           isReadonly={isReadonly}
                         />
+                      ) : toolName === 'sendDocumentForSigning' ? (
+                        <div className="p-4 border rounded-md bg-muted/50 text-sm">
+                          <p className="font-medium mb-1">
+                            Send for Signing Result:
+                          </p>
+                          <p>{result?.message || JSON.stringify(result)}</p>
+                          {typeof result?.linksGenerated === 'number' && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Links Generated: {result.linksGenerated}
+                            </p>
+                          )}
+                        </div>
                       ) : (
                         <pre>{JSON.stringify(result, null, 2)}</pre>
                       )}

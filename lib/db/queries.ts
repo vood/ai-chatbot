@@ -1,6 +1,10 @@
 import 'server-only';
 
-import { createClient, auth } from '@/lib/supabase/server';
+import {
+  createClient,
+  auth,
+  createServiceRoleClient,
+} from '@/lib/supabase/server';
 import type { Tables } from '@/supabase/types';
 import type { ArtifactKind } from '@/components/artifact';
 import type {
@@ -757,9 +761,8 @@ export async function getContactsForDocument({
     // We need to query contract_fields table for this.
     const { data: fieldData, error: fieldError } = await supabase
       .from('contract_fields')
-      .select('contact_id')
-      .eq('document_id', documentId)
-      .neq('contact_id', null); // Ensure contact_id is not null
+      .select('contact_id, contacts(*)')
+      .eq('document_id', documentId);
 
     if (fieldError) {
       console.error(
@@ -773,33 +776,21 @@ export async function getContactsForDocument({
       return []; // No associated contacts found
     }
 
-    // Extract unique, non-null contact IDs
-    const distinctContactIds = [
-      ...new Set(
-        fieldData
-          .map((field) => field.contact_id)
-          .filter((id): id is string => !!id),
-      ),
-    ];
-
-    if (distinctContactIds.length === 0) {
-      return [];
-    }
-
-    // Step 2: Fetch contact details for these unique IDs
-    const { data: contactsData, error: contactsError } = await supabase
-      .from('contacts')
-      .select('id, name') // Select only id and name
-      .in('id', distinctContactIds);
-
-    if (contactsError) {
-      console.error('Error fetching contact details:', contactsError);
-      throw contactsError;
-    }
+    // flatten the array of arrays
+    const contactsData = fieldData
+      .flatMap((field) => field.contacts)
+      .filter((contact): contact is Contact => !!contact)
+      .reduce((acc, contact) => {
+        if (!acc.some((c) => c.id === contact.id)) {
+          acc.push(contact);
+        }
+        return acc;
+      }, [] as Contact[]);
 
     return contactsData || [];
   } catch (error) {
     console.error('Error in getContactsForDocument query:', error);
+    console.trace();
     return []; // Return empty array on error
   }
 }
@@ -840,16 +831,15 @@ export async function getPublicSigningDataByToken({
   contact: Contact | null;
   link: SigningLink | null;
 } | null> {
-  const supabase = await createClient(); // Uses user context if available, or anon key for public
+  const supabase = await createClient(); // Client for initial token check (uses anon or user context)
 
   try {
-    // 1. Fetch the signing link using the token
-    // The RLS policy allows public access to select based on token if valid
+    // 1. Fetch the signing link using the token (respects signing_links RLS)
     const { data: linkData, error: linkError } = await supabase
       .from('signing_links')
       .select('*, contacts(*)') // Fetch link and associated contact
       .eq('token', token)
-      .maybeSingle(); // Use maybeSingle to return null if not found
+      .maybeSingle();
 
     if (linkError) {
       console.error(
@@ -858,56 +848,58 @@ export async function getPublicSigningDataByToken({
       );
       throw linkError;
     }
-
     if (!linkData) {
       console.log(`No signing link found for token: ${token}`);
       return null; // Link not found
     }
 
-    // 2. Validate the link status and expiration
+    // 2. Validate the link status and expiration (remains the same)
     if (linkData.status === 'completed' || linkData.status === 'expired') {
-      console.log(`Signing link ${token} is already ${linkData.status}.`);
-      // Optionally return the link status instead of null
+      // ... handle completed/expired ...
       return { document: null, fields: [], contact: null, link: linkData };
     }
-
     if (linkData.expires_at && new Date(linkData.expires_at) < new Date()) {
-      console.log(`Signing link ${token} has expired.`);
-      // Optionally update status to 'expired' here
-      // await updateSigningLinkStatus({ token, status: 'expired' });
+      // ... handle expired ...
       return { document: null, fields: [], contact: null, link: linkData };
     }
 
-    // 3. Fetch the document content
-    // Requires appropriate RLS on 'documents' or fetching with elevated privileges if needed.
-    // Assuming RLS allows fetching if the user_id matches the link owner, or using service role?
-    // For simplicity now, assuming fetch is possible. Revisit security if needed.
-    const { data: documentData, error: docError } = await supabase
+    // 3. Fetch the document content USING SERVICE ROLE (bypasses RLS)
+    //    Do this ONLY after validating the token.
+    const supabaseService = await createServiceRoleClient();
+    const { data: documentData, error: docError } = await supabaseService
       .from('documents')
       .select('*')
       .eq('id', linkData.document_id)
-      .eq('user_id', linkData.user_id) // Ensure document belongs to the link owner
-      .single();
+      .order('created_at', { ascending: false })
+      .limit(1); // Use single() here as service role should find the unique doc or error
 
-    if (docError || !documentData) {
+    // Handle document fetch errors (e.g., document deleted)
+    if (docError) {
       console.error(
-        `Error fetching document ${linkData.document_id} for link ${token}:`,
+        `Service role error fetching document ${linkData.document_id} for link ${token}:`,
         docError,
       );
-      // Document might be deleted or inaccessible
-      return null;
+      // Throw or return null depending on how you want to handle missing docs
+      throw docError;
+    }
+    // If using single(), error should be thrown if not found. If maybeSingle(), check !documentData
+    if (!documentData) {
+      console.warn(
+        `Document ${linkData.document_id} not found via service role for link ${token}.`,
+      );
+      return null; // Document genuinely not found
     }
 
-    // 4. Fetch the specific contract fields assigned to this contact for this document
-    // RLS on contract_fields should allow the user_id (owner) to select.
-    // Public access is indirect via the validated token.
-    const { data: fieldsData, error: fieldsError } = await supabase
+    // 4. Fetch the specific contract fields assigned to this contact
+    //    (Using owner's user_id from linkData to respect contract_fields RLS)
+    const { data: fieldsData, error: fieldsError } = await supabase // Use regular client again
       .from('contract_fields')
       .select('*')
       .eq('document_id', linkData.document_id)
       .eq('contact_id', linkData.contact_id)
-      .eq('user_id', linkData.user_id); // Ensure fields belong to the link owner
+      .eq('user_id', linkData.user_id); // Filter by owner ID from the link
 
+    // ... fieldsError check remains the same ...
     if (fieldsError) {
       console.error(
         `Error fetching fields for contact ${linkData.contact_id} and document ${linkData.document_id}:`,
@@ -916,26 +908,24 @@ export async function getPublicSigningDataByToken({
       throw fieldsError;
     }
 
-    // Extract contact details from the nested query result
+    // ... rest of the function (extract contact, update status, return) remains the same ...
     const contactDetails = linkData.contacts as Contact | null;
-
-    // Optionally update status to 'viewed' if it's 'pending'
     if (linkData.status === 'pending') {
       await supabase
         .from('signing_links')
         .update({ status: 'viewed', updated_at: new Date().toISOString() })
         .eq('token', token);
     }
-
     return {
-      document: documentData,
+      document: documentData[0],
       fields: fieldsData || [],
       contact: contactDetails,
-      link: linkData as SigningLink, // Cast linkData back to SigningLink type after join
+      link: linkData as SigningLink,
     };
   } catch (error) {
+    // ... outer error handling ...
     console.error('Error in getPublicSigningDataByToken function:', error);
-    return null; // Return null on any function-level error
+    return null;
   }
 }
 
@@ -1009,6 +999,76 @@ export async function updateContractFieldsBatch({
     return { success: true };
   } catch (error) {
     console.error('Error in updateContractFieldsBatch function:', error);
+    throw error;
+  }
+}
+
+// Fetch multiple contacts by their IDs
+export async function getContactsByIds({
+  ids,
+}: { ids: string[] }): Promise<Contact[]> {
+  if (!ids || ids.length === 0) {
+    return [];
+  }
+  const supabase = await createClient();
+  try {
+    // Assuming RLS on contacts allows the authenticated user to fetch contacts
+    // they own or are associated with via documents they own.
+    // Adjust the query/RLS if different access logic is needed.
+    const { data, error } = await supabase
+      .from('contacts')
+      .select('*')
+      .in('id', ids);
+
+    if (error) {
+      console.error('Failed to get contacts by IDs:', error);
+      throw error;
+    }
+    return data || [];
+  } catch (error) {
+    console.error('Error in getContactsByIds function:', error);
+    throw error;
+  }
+}
+
+// Batch update contact emails
+export async function updateContactEmailsBatch({
+  emailUpdates, // Array of { id: string; email: string | null }
+  userId, // User performing the update (for RLS checks)
+}: {
+  emailUpdates: Array<{ id: string; email: string | null }>;
+  userId: string;
+}) {
+  const supabase = await createClient();
+  try {
+    // Perform multiple updates. Consider transaction RPC for atomicity if needed.
+    const updatePromises = emailUpdates.map(
+      (update) =>
+        supabase
+          .from('contacts')
+          .update({
+            email: update.email,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', update.id)
+          .eq('user_id', userId), // RLS check: User must own the contact
+    );
+
+    const results = await Promise.all(updatePromises);
+
+    // Check for errors in any updates
+    const errors = results.map((res) => res.error).filter(Boolean);
+    if (errors.length > 0) {
+      console.error('Error batch updating contact emails:', errors);
+      throw new Error(
+        `Failed to update some contact emails: ${errors.map((e) => e?.message).join('; ')}`,
+      );
+    }
+
+    console.log(`Successfully updated ${emailUpdates.length} contact emails.`);
+    return { success: true };
+  } catch (error) {
+    console.error('Error in updateContactEmailsBatch function:', error);
     throw error;
   }
 }

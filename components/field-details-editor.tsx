@@ -33,8 +33,6 @@ interface ContactOption {
   name: string | null;
 }
 
-const UNASSIGNED_VALUE = '__UNASSIGNED__'; // Define a constant for the unassigned value
-
 export const FieldDetailsEditor: React.FC<FieldDetailsEditorProps> = ({
   annotation,
   onSave,
@@ -62,6 +60,8 @@ export const FieldDetailsEditor: React.FC<FieldDetailsEditorProps> = ({
 
       // Fetch contacts associated with the document ID
       const docId = data.document_id;
+
+      console.log('docId', docId);
       if (docId) {
         setIsLoadingContacts(true);
         // Pass argument as an object
@@ -133,7 +133,7 @@ export const FieldDetailsEditor: React.FC<FieldDetailsEditorProps> = ({
 
   const handleContactChange = (value: string) => {
     // Map the selected value back to the correct state type (string | null)
-    setContactId(value === UNASSIGNED_VALUE ? null : value);
+    setContactId(value);
     setIsDirty(true); // Ensure changes are tracked
   };
 
@@ -172,7 +172,7 @@ export const FieldDetailsEditor: React.FC<FieldDetailsEditorProps> = ({
         <Select
           // Map state (null for unassigned, string for ID) to Select's value
           // Use UNASSIGNED_VALUE for null, the ID itself if present, or '' for initial/placeholder state
-          value={contactId === null ? UNASSIGNED_VALUE : (contactId ?? '')}
+          value={contactId ?? ''}
           onValueChange={handleContactChange}
           disabled={isLoadingContacts}
         >
@@ -185,7 +185,6 @@ export const FieldDetailsEditor: React.FC<FieldDetailsEditorProps> = ({
           </SelectTrigger>
           <SelectContent>
             {/* Add option for explicitly unassigned */}
-            <SelectItem value={UNASSIGNED_VALUE}>_Unassigned_</SelectItem>
             {contactsList.map((contact) => (
               <SelectItem key={contact.id} value={contact.id}>
                 {contact.name || contact.id} {/** Show ID if name is null */}

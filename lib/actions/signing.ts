@@ -8,6 +8,8 @@ import {
   getPublicSigningDataByToken,
   updateSigningLinkStatus,
   updateContractFieldsBatch,
+  getContactsByIds,
+  updateContactEmailsBatch,
 } from '@/lib/db/queries';
 import type {
   SigningLinkInsert,
@@ -279,5 +281,132 @@ export const submitSignedDocument = async (
       success: false,
       message: 'An error occurred while submitting the document.',
     };
+  }
+};
+
+// Schema for getting contacts
+const getContactsSchema = z.object({
+  documentId: z.string().uuid(),
+});
+
+// Action to fetch contacts associated with a document's fields
+export const getSigningContactsForDocument = async (
+  input: z.infer<typeof getContactsSchema>,
+): Promise<{ success: boolean; contacts?: Contact[]; error?: string }> => {
+  const parseResult = getContactsSchema.safeParse(input);
+  if (!parseResult.success) {
+    return {
+      success: false,
+      error: `Invalid input: ${parseResult.error.message}`,
+    };
+  }
+  const { documentId } = parseResult.data;
+
+  // Corrected auth() usage
+  const user = await auth(); // Returns UserWithWorkspace | null
+  if (!user) {
+    console.error(
+      'Auth error or user not found in getSigningContactsForDocument.',
+    );
+    return { success: false, error: 'Authentication required' };
+  }
+  // user is now UserWithWorkspace
+
+  const supabase = await createClient();
+
+  try {
+    console.log(
+      `Fetching contacts for document ${documentId} by user ${user.id}`,
+    );
+
+    // 1. Fetch unique contact IDs associated with this document from contract_fields
+    const { data: fieldContacts, error: fieldError } = await supabase
+      .from('contract_fields')
+      .select('contact_id')
+      .eq('document_id', documentId)
+      .eq('user_id', user.id);
+
+    if (fieldError) {
+      console.error('Error fetching contact IDs for document:', fieldError);
+      return {
+        success: false,
+        error: 'Failed to retrieve document contact IDs.',
+      };
+    }
+
+    if (!fieldContacts || fieldContacts.length === 0) {
+      console.log('No contact IDs found associated with this document.');
+      return { success: true, contacts: [] };
+    }
+
+    // Get unique contact IDs
+    const uniqueContactIds = [
+      ...new Set(fieldContacts.map((fc) => fc.contact_id)),
+    ];
+    console.log(`Found ${uniqueContactIds.length} unique contacts IDs.`);
+
+    // 2. Fetch full contact details for these IDs
+    const contacts = await getContactsByIds({ ids: uniqueContactIds });
+
+    return { success: true, contacts };
+  } catch (error) {
+    console.error('Error in getSigningContactsForDocument action:', error);
+    const message =
+      error instanceof Error ? error.message : 'An unknown error occurred.';
+    return { success: false, error: message };
+  }
+};
+
+// Schema for saving contact emails
+const saveEmailsSchema = z.object({
+  // Expecting { contactId: email } format
+  emails: z.record(
+    z.string().uuid(),
+    z.string().email().nullable().or(z.literal('')),
+  ),
+});
+
+// Action to save contact emails
+export const saveContactEmails = async (
+  input: z.infer<typeof saveEmailsSchema>,
+): Promise<{ success: boolean; error?: string }> => {
+  const parseResult = saveEmailsSchema.safeParse(input);
+  if (!parseResult.success) {
+    return {
+      success: false,
+      error: `Invalid input: ${parseResult.error.message}`,
+    };
+  }
+  const { emails } = parseResult.data;
+
+  const user = await auth();
+  if (!user) {
+    return { success: false, error: 'Authentication required' };
+  }
+
+  try {
+    const emailUpdates = Object.entries(emails).map(([id, email]) => ({
+      id,
+      // Convert empty string to null for DB consistency, keep null as null
+      email: email === '' ? null : email,
+    }));
+
+    if (emailUpdates.length === 0) {
+      return { success: true }; // Nothing to update
+    }
+
+    console.log(
+      `Updating emails for ${emailUpdates.length} contacts by user ${user.id}`,
+    );
+
+    // Call the batch update query
+    await updateContactEmailsBatch({ emailUpdates, userId: user.id });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error in saveContactEmails action:', error);
+    const message =
+      error instanceof Error ? error.message : 'An unknown error occurred.';
+    return { success: false, error: message };
   }
 };

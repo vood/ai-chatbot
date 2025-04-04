@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import React, { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -17,12 +19,12 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea'; // For potential multi-line fields
-import { toast } from '@/components/ui/use-toast'; // Assuming Shadcn toast
+import { Textarea } from '@/components/ui/textarea';
+import { toast } from 'sonner';
 import { submitSignedDocument } from '@/lib/actions/signing';
 import type { Document, Contact, ContractField } from '@/lib/db/schema';
 import { Loader2 } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area'; // To display document content
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface SigningFormProps {
   document: Document;
@@ -35,7 +37,6 @@ interface SigningFormProps {
 const createSigningSchema = (fields: ContractField[]) => {
   const schemaObject: Record<string, z.ZodTypeAny> = {};
   fields.forEach((field) => {
-    // Basic string validation for now, can be enhanced based on field.field_type
     let fieldSchema = z.string();
     if (field.is_required) {
       fieldSchema = fieldSchema.min(1, {
@@ -45,14 +46,78 @@ const createSigningSchema = (fields: ContractField[]) => {
     if (field.field_type === 'email') {
       fieldSchema = fieldSchema.email({ message: 'Invalid email address.' });
     }
-    // Add more type-specific validations as needed (e.g., date, phone)
-
-    // Allow empty string if not required, otherwise use the base schema
     schemaObject[field.id] = field.is_required
       ? fieldSchema
       : fieldSchema.optional().or(z.literal(''));
   });
   return z.object(schemaObject);
+};
+
+// Simple component to visually highlight the fields in the document
+const HighlightedField = ({ children }: { children: React.ReactNode }) => (
+  <span className="bg-yellow-200 dark:bg-yellow-700 px-1 py-0.5 rounded-sm font-medium">
+    {children}
+  </span>
+);
+
+// Helper function to escape special characters for regex
+const escapeRegex = (s: string) =>
+  s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\\\$&');
+
+// NEW: Manual highlighting function
+const renderContentWithHighlights = (
+  content: string,
+  fields: ContractField[],
+): React.ReactNode[] => {
+  const placeholders = fields
+    .map((f) => f.placeholder_text)
+    .filter((p): p is string => typeof p === 'string' && p.length > 0);
+
+  if (placeholders.length === 0) {
+    // Render full content as Markdown if no fields or placeholders
+    return [
+      <ReactMarkdown key="full-content" remarkPlugins={[remarkGfm]}>
+        {content}
+      </ReactMarkdown>,
+    ];
+  }
+
+  // Create a regex to match any of the placeholders, ensuring capture group
+  const regex = new RegExp(`(${placeholders.map(escapeRegex).join('|')})`, 'g');
+
+  const parts = content.split(regex);
+  const nodes: React.ReactNode[] = [];
+
+  parts.forEach((part, index) => {
+    if (part !== undefined && part !== null) {
+      // Check part validity
+      // Determine if the part is one of the exact placeholders
+      const isPlaceholder = placeholders.includes(part);
+      if (isPlaceholder) {
+        // Wrap placeholders with the highlight component
+        nodes.push(
+          <HighlightedField key={`highlight-${part}-${index}`}>
+            {part}
+          </HighlightedField>,
+        );
+      } else if (part.length > 0) {
+        // Avoid rendering empty strings
+        // Render non-placeholder text segments using ReactMarkdown
+        // Use a wrapper like <span> or <> fragment if needed, though often unnecessary
+        nodes.push(
+          <ReactMarkdown
+            key={`text-${index}`}
+            remarkPlugins={[remarkGfm]}
+            className="inline"
+          >
+            {part}
+          </ReactMarkdown>,
+        );
+      }
+    }
+  });
+
+  return nodes;
 };
 
 export default function SigningForm({
@@ -65,15 +130,12 @@ export default function SigningForm({
   const [isPending, startTransition] = useTransition();
   const [submissionError, setSubmissionError] = useState<string | null>(null);
 
-  // Generate the schema dynamically
   const formSchema = createSigningSchema(fields);
 
-  // Initialize react-hook-form
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: fields.reduce(
       (acc, field) => {
-        // Initialize with empty strings or existing values if re-signing is allowed (not implemented here)
         acc[field.id] = field.field_value || '';
         return acc;
       },
@@ -83,9 +145,6 @@ export default function SigningForm({
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     setSubmissionError(null);
-    console.log('Submitting field values:', values);
-
-    // Convert possibly empty strings to null for the backend if needed
     const fieldValuesForAction = Object.entries(values).reduce(
       (acc, [key, value]) => {
         acc[key] = value === '' ? null : value;
@@ -94,58 +153,47 @@ export default function SigningForm({
       {} as Record<string, string | null>,
     );
 
-    startTransition(async () => {
-      try {
-        const result = await submitSignedDocument({
-          token,
-          fieldValues: fieldValuesForAction,
-        });
+    startTransition(() => {
+      const submitAction = async () => {
+        try {
+          const result = await submitSignedDocument({
+            token,
+            fieldValues: fieldValuesForAction,
+          });
 
-        if (result.success) {
-          toast({
-            title: 'Success!',
-            description: result.message || 'Document submitted successfully.',
-          });
-          // Optionally redirect to a success page or disable the form
-          // router.push('/sign/success');
-          form.reset(); // Reset form on success
-          // Consider disabling the form fields after successful submission
-        } else {
-          setSubmissionError(
-            result.message || 'Submission failed. Please try again.',
-          );
-          toast({
-            variant: 'destructive',
-            title: 'Submission Error',
-            description: result.message || 'Failed to submit document.',
-          });
+          if (result.success) {
+            toast.success(result.message || 'Document submitted successfully.');
+            form.reset();
+          } else {
+            setSubmissionError(
+              result.message || 'Submission failed. Please try again.',
+            );
+            toast.error(result.message || 'Failed to submit document.');
+          }
+        } catch (error) {
+          console.error('Error submitting document:', error);
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : 'An unexpected error occurred.';
+          setSubmissionError(`Submission failed: ${errorMessage}`);
+          toast.error(`An unexpected error occurred: ${errorMessage}`);
         }
-      } catch (error) {
-        console.error('Error submitting document:', error);
-        const errorMessage =
-          error instanceof Error
-            ? error.message
-            : 'An unexpected error occurred.';
-        setSubmissionError(`Submission failed: ${errorMessage}`);
-        toast({
-          variant: 'destructive',
-          title: 'Submission Error',
-          description: `An unexpected error occurred: ${errorMessage}`,
-        });
-      }
+      };
+      submitAction();
     });
   };
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        {/* Display Document Content (Read-only) */}
+        {/* Document Content: Render using manual highlighting */}
         <div className="space-y-2">
           <h3 className="text-lg font-semibold">Document Content</h3>
-          <ScrollArea className="h-72 w-full rounded-md border p-4 bg-muted">
-            <pre className="text-sm whitespace-pre-wrap">
-              {document.content}
-            </pre>
+          <ScrollArea className="h-96 w-full rounded-md border p-4 bg-background text-sm">
+            <div className="whitespace-pre-wrap">
+              {renderContentWithHighlights(document.content, fields)}
+            </div>
           </ScrollArea>
         </div>
 
@@ -156,17 +204,14 @@ export default function SigningForm({
             <FormField
               key={field.id}
               control={form.control}
-              name={field.id} // Use field ID as the name for react-hook-form
-              render={(
-                { field: rhfField }, // Rename to avoid conflict
-              ) => (
+              name={field.id}
+              render={({ field: rhfField }) => (
                 <FormItem>
                   <FormLabel>
                     {field.field_name}
                     {field.is_required ? ' *' : ''}
                   </FormLabel>
                   <FormControl>
-                    {/* Basic Input for now, enhance based on field.field_type */}
                     {field.field_type === 'signature' ? (
                       <div className="p-4 border rounded-md bg-gray-100 text-center text-gray-500">
                         Signature Pad Placeholder (Field: {field.field_name})
@@ -175,19 +220,17 @@ export default function SigningForm({
                       <Input
                         type="date"
                         {...rhfField}
-                        value={rhfField.value || ''}
+                        value={rhfField.value ?? ''}
                       />
                     ) : (
                       <Input
                         placeholder={`Enter ${field.field_name}`}
                         {...rhfField}
-                        value={rhfField.value || ''} // Ensure controlled component
+                        value={rhfField.value ?? ''}
                       />
                     )}
                   </FormControl>
-                  <FormDescription>
-                    {/* Add description based on field type if needed */}
-                  </FormDescription>
+                  <FormDescription></FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

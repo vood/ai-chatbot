@@ -28,7 +28,8 @@ import { isProductionEnvironment } from '@/lib/constants';
 import { myProvider } from '@/lib/ai/providers';
 import type { Json } from '@/supabase/types';
 import webSearch from '@/lib/ai/tools/web-search';
-import { requestContractFields } from '@/lib/ai/tools';
+import { requestContractFields } from '@/lib/ai/tools/request-contract-fields';
+import { sendDocumentForSigning } from '@/lib/ai/tools/send-document-for-signing';
 
 export const maxDuration = 60;
 
@@ -44,11 +45,11 @@ export async function POST(request: Request) {
       selectedChatModel: string;
     } = await request.json();
 
-    const user = await auth();
-
-    if (!user) {
+    const authResult = await auth();
+    if (!authResult) {
       return new Response('Unauthorized', { status: 401 });
     }
+    const user = authResult;
 
     const userMessage = getMostRecentUserMessage(messages);
 
@@ -119,6 +120,7 @@ export async function POST(request: Request) {
             'requestSuggestions',
             'requestContractFields',
             'webSearch',
+            'sendDocumentForSigning',
           ],
           experimental_transform: smoothStream({ chunking: 'word' }),
           experimental_generateMessageId: generateUUID,
@@ -135,6 +137,10 @@ export async function POST(request: Request) {
               dataStream,
             }),
             webSearch: webSearch,
+            sendDocumentForSigning: sendDocumentForSigning({
+              user: user,
+              dataStream,
+            }),
           },
           onFinish: async ({ response }) => {
             if (user.id) {

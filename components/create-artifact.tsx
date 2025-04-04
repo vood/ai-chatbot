@@ -18,7 +18,11 @@ type ArtifactAction<M = any> = {
   icon: ReactNode;
   label?: string;
   description: string;
-  onClick: (context: ArtifactActionContext<M>) => Promise<void> | void;
+  onClick?: (context: ArtifactActionContext<M>) => Promise<void> | void;
+  render?: (
+    context: ArtifactActionContext<M>,
+    renderProps: { isLoading: boolean; disabled: boolean },
+  ) => ReactNode;
   isDisabled?: (context: ArtifactActionContext<M>) => boolean;
 };
 

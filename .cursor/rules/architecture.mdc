@@ -16,7 +16,7 @@ alwaysApply: true
 *   Component Library: Shadcn UI
     *   Utilize standard Shadcn components whenever possible.
 *   Icons: Lucide Icons
-*   Notifications: Sonner for toasts
+*   Notifications: Sonner for toasts, don't use custom hook
 
 ## Backend & Database (Supabase)
 

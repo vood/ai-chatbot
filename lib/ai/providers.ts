@@ -31,7 +31,7 @@ export const myProvider = isTestEnvironment
         }),
         'chat-websearch': openrouter('openai/gpt-4o:search'),
         'title-model': openrouter('openai/gpt-4o-mini'),
-        'artifact-model': openrouter('openai/gpt-4o'),
+        'artifact-model': openrouter('anthropic/claude-3-7-sonnet'),
       },
       imageModels: {
         'small-model': openai.image('dall-e-3'),

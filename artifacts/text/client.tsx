@@ -17,10 +17,10 @@ import { toast } from 'sonner';
 import { getContractFields, getSuggestions } from '../actions';
 import { FormInputIcon, ScaleIcon } from 'lucide-react';
 import type { DocumentAnnotation } from '@/components/artifact';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import type { UIAnnotation } from '@/lib/editor/annotations';
 import { FieldDetailsEditor } from '@/components/field-details-editor';
-import type { ContractField } from '@/lib/db/schema';
+import type { ContractField, Document } from '@/lib/db/schema';
 // Import Sheet components
 import {
   Sheet,
@@ -28,10 +28,22 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import { SendHorizonal, Loader2 } from 'lucide-react';
+import {
+  SigningSetupDialog,
+  SendForSigningTrigger,
+} from '@/components/signing';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface TextArtifactMetadata {
   suggestions: Array<Suggestion>;
   annotations: Array<DocumentAnnotation<any>>;
+  documentId?: string;
 }
 
 // Define type for document annotation stream content
@@ -44,6 +56,8 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
   kind: 'text',
   description: 'Useful for text content, like drafting essays and emails.',
   initialize: async ({ documentId, setMetadata }) => {
+    console.log('Initializing text artifact with documentId:', documentId);
+
     const suggestions = await getSuggestions({ documentId });
     const contractFields = await getContractFields({ documentId });
 
@@ -97,6 +111,7 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
     console.log('Created annotations:', annotations);
 
     setMetadata({
+      documentId,
       suggestions: Array.isArray(suggestions) ? suggestions : [], // Ensure suggestions is array
       annotations,
     });
@@ -231,9 +246,11 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
     metadata,
     setMetadata,
   }) => {
-    // Add state for the selected annotation
     const [selectedAnnotation, setSelectedAnnotation] =
       useState<UIAnnotation | null>(null);
+
+    // Get document ID from metadata
+    const documentId = metadata?.documentId;
 
     if (isLoading) {
       return <DocumentSkeleton artifactKind="text" />;
@@ -242,35 +259,26 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
     if (mode === 'diff') {
       const oldContent = getDocumentContentById(currentVersionIndex - 1);
       const newContent = getDocumentContentById(currentVersionIndex);
-
       return <DiffView oldContent={oldContent} newContent={newContent} />;
     }
 
-    // Ensure metadata and annotations exist before passing
     const currentAnnotations = metadata?.annotations || [];
     const currentSuggestions = metadata?.suggestions || [];
 
-    // Handler for closing the sheet (clears selection)
     const handleSheetClose = (isOpen: boolean) => {
       if (!isOpen) {
         setSelectedAnnotation(null);
       }
     };
 
-    // Placeholder save handler - TODO: Implement backend update
     const handleSaveAnnotation = (
       annotationId: string,
       updatedData: Partial<ContractField>,
     ) => {
       console.log('Saving annotation:', annotationId, updatedData);
-      // TODO: Call API to save changes
-
-      // OPTIONAL: Update local metadata state immediately for better UX
-      // Requires setMetadata to be passed down or handled via context/hook
       if (setMetadata) {
         setMetadata((currentMetadata) => {
           if (!currentMetadata?.annotations) return currentMetadata;
-
           const updatedAnnotations = currentMetadata.annotations.map((anno) => {
             if (anno.id === annotationId) {
               return {
@@ -284,7 +292,6 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
             }
             return anno;
           });
-
           return {
             ...currentMetadata,
             annotations: updatedAnnotations,
@@ -295,42 +302,41 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
           'setMetadata prop not available to update annotations locally.',
         );
       }
-
-      // Optionally close the sheet after saving
-      // setSelectedAnnotation(null);
     };
 
     return (
-      <div className="flex flex-row py-8 md:p-20 px-4">
-        <Editor
-          content={content}
-          suggestions={currentSuggestions}
-          isCurrentVersion={isCurrentVersion}
-          currentVersionIndex={currentVersionIndex}
-          status={status}
-          onSaveContent={onSaveContent}
-          annotations={currentAnnotations}
-          onAnnotationSelect={setSelectedAnnotation}
-        />
-        {metadata?.suggestions && metadata.suggestions.length > 0 ? (
-          <div className="md:hidden h-dvh w-12 shrink-0" />
-        ) : null}
-        <Sheet
-          open={selectedAnnotation !== null}
-          onOpenChange={handleSheetClose}
-        >
-          <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto">
-            <SheetHeader>
-              <SheetTitle>Edit Field</SheetTitle>
-            </SheetHeader>
-            <div className="py-4">
-              <FieldDetailsEditor
-                annotation={selectedAnnotation}
-                onSave={handleSaveAnnotation}
-              />
-            </div>
-          </SheetContent>
-        </Sheet>
+      <div className="flex flex-col py-8 md:p-20 px-4">
+        <div className="flex flex-row">
+          <Editor
+            content={content}
+            suggestions={currentSuggestions}
+            isCurrentVersion={isCurrentVersion}
+            currentVersionIndex={currentVersionIndex}
+            status={status}
+            onSaveContent={onSaveContent}
+            annotations={currentAnnotations}
+            onAnnotationSelect={setSelectedAnnotation}
+          />
+          {metadata?.suggestions && metadata.suggestions.length > 0 ? (
+            <div className="md:hidden h-dvh w-12 shrink-0" />
+          ) : null}
+          <Sheet
+            open={selectedAnnotation !== null}
+            onOpenChange={handleSheetClose}
+          >
+            <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto">
+              <SheetHeader>
+                <SheetTitle>Edit Field</SheetTitle>
+              </SheetHeader>
+              <div className="py-4">
+                <FieldDetailsEditor
+                  annotation={selectedAnnotation}
+                  onSave={handleSaveAnnotation}
+                />
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
       </div>
     );
   },
@@ -341,11 +347,10 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
       onClick: ({ handleVersionChange }) => {
         handleVersionChange('toggle');
       },
-      isDisabled: ({ currentVersionIndex, setMetadata }) => {
+      isDisabled: ({ currentVersionIndex }) => {
         if (currentVersionIndex === 0) {
           return true;
         }
-
         return false;
       },
     },
@@ -359,7 +364,6 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
         if (currentVersionIndex === 0) {
           return true;
         }
-
         return false;
       },
     },
@@ -373,7 +377,6 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
         if (isCurrentVersion) {
           return true;
         }
-
         return false;
       },
     },
@@ -392,6 +395,57 @@ export const textArtifact = new Artifact<'text', TextArtifactMetadata>({
       onClick: ({ content }) => {
         navigator.clipboard.writeText(content);
         toast.success('Copied to clipboard!');
+      },
+    },
+    {
+      icon: <SendHorizonal size={18} />,
+      description: 'Setup & Send for Signing',
+      label: 'Sign',
+      isDisabled: ({ isCurrentVersion, metadata }) => {
+        // Disabled if not current version or documentId is missing
+        return !isCurrentVersion || !metadata?.documentId;
+      },
+      render: (context, { isLoading, disabled }) => {
+        const documentId = context.metadata?.documentId;
+
+        console.log('Render signing button - metadata:', context.metadata);
+        console.log('Render signing button - documentId:', documentId);
+
+        // Always render the button, but pass null documentId if not available
+        return (
+          <SendForSigningTrigger documentId={documentId || ''}>
+            {(triggerFn, isPending) => (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="h-fit py-1.5 px-2 dark:hover:bg-zinc-700"
+                    onClick={() => {
+                      if (documentId) {
+                        triggerFn();
+                      } else {
+                        toast.error(
+                          'Cannot set up signing without a document ID.',
+                        );
+                      }
+                    }}
+                    disabled={disabled || !documentId || isPending}
+                  >
+                    {isPending ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                      <>
+                        <SendHorizonal size={18} />
+                        <span className="ml-1">Sign</span>
+                      </>
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Setup & Send for Signing</TooltipContent>
+              </Tooltip>
+            )}
+          </SendForSigningTrigger>
+        );
       },
     },
   ],
