@@ -23,6 +23,7 @@ import {
   StopIcon,
   GlobeIcon,
   ImageIcon,
+  SparklesIcon,
 } from './icons';
 import { ModelSelector } from './model-selector';
 import { PreviewAttachment } from './preview-attachment';
@@ -30,6 +31,16 @@ import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { SuggestedActions } from './suggested-actions';
 import equal from 'fast-deep-equal';
+
+// Import our new components
+import { CommandPrompt } from './command-prompt';
+import { PromptVariablesDialog } from './prompt-variables-dialog';
+import {
+  AttachmentsButton,
+  SendButton,
+  StopButton,
+  FeatureToggleButton,
+} from './chat-buttons';
 
 function PureMultimodalInput({
   chatId,
@@ -62,6 +73,15 @@ function PureMultimodalInput({
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { width } = useWindowSize();
+
+  // State for command prompt and variable handling
+  const [showCommandDialog, setShowCommandDialog] = useState(false);
+  const [showVariablesDialog, setShowVariablesDialog] = useState(false);
+  const [selectedPromptContent, setSelectedPromptContent] = useState('');
+
+  // Web search and image generation toggles
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+  const [imageGenEnabled, setImageGenEnabled] = useState(false);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -104,8 +124,33 @@ function PureMultimodalInput({
     setLocalStorageInput(input);
   }, [input, setLocalStorageInput]);
 
+  // Add keyboard shortcut handler
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Command+K (macOS) or Ctrl+K (Windows/Linux)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault(); // Prevent any default browser behavior
+        if (status === 'ready') {
+          setShowCommandDialog(true);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [status]);
+
   const handleInput = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInput(event.target.value);
+    const value = event.target.value;
+
+    // Check if the user has just typed "/" at the start or in an empty field
+    if (value === '/' && (!input || input.trim() === '')) {
+      event.preventDefault(); // Prevent any default behavior
+      setShowCommandDialog(true);
+      return;
+    }
+
+    setInput(value);
     adjustHeight();
   };
 
@@ -188,8 +233,35 @@ function PureMultimodalInput({
     [setAttachments],
   );
 
-  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
-  const [imageGenEnabled, setImageGenEnabled] = useState(false);
+  // Handle prompt selection and variable replacement
+  const handlePromptSelect = (promptContent: string) => {
+    // First store the selected prompt content
+    setSelectedPromptContent(promptContent);
+
+    // We'll close the command dialog (this should be handled by the CommandPrompt component)
+    // and only open the variables dialog after that
+
+    // Make sure we delay showing variables dialog until after command dialog is closed
+    // but only if not already in a variables dialog flow
+    if (!showVariablesDialog) {
+      setTimeout(() => {
+        setShowVariablesDialog(true);
+      }, 100);
+    }
+  };
+
+  // Handle final prompt with variables filled in
+  const handleFinalPrompt = useCallback(
+    (finalContent: string) => {
+      setInput(finalContent);
+      // Adjust height after setting input
+      requestAnimationFrame(() => {
+        adjustHeight();
+        textareaRef.current?.focus();
+      });
+    },
+    [setInput],
+  );
 
   return (
     <div className="relative w-full flex flex-col gap-4">
@@ -295,6 +367,21 @@ function PureMultimodalInput({
           )}
         </div>
       </div>
+
+      {/* Command Dialog for Prompts */}
+      <CommandPrompt
+        open={showCommandDialog}
+        onOpenChange={setShowCommandDialog}
+        onSelectPrompt={handlePromptSelect}
+      />
+
+      {/* Dialog for handling prompt variables */}
+      <PromptVariablesDialog
+        open={showVariablesDialog}
+        onOpenChange={setShowVariablesDialog}
+        promptContent={selectedPromptContent}
+        onComplete={handleFinalPrompt}
+      />
     </div>
   );
 }
@@ -311,118 +398,3 @@ export const MultimodalInput = memo(
     return true;
   },
 );
-
-function PureAttachmentsButton({
-  fileInputRef,
-  status,
-}: {
-  fileInputRef: React.MutableRefObject<HTMLInputElement | null>;
-  status: UseChatHelpers['status'];
-}) {
-  return (
-    <Button
-      data-testid="attachments-button"
-      className="rounded-md rounded-bl-lg p-[7px] h-fit dark:border-zinc-700 hover:dark:bg-zinc-900 hover:bg-zinc-200"
-      onClick={(event) => {
-        event.preventDefault();
-        fileInputRef.current?.click();
-      }}
-      disabled={status !== 'ready'}
-      variant="ghost"
-    >
-      <PaperclipIcon size={14} />
-    </Button>
-  );
-}
-
-const AttachmentsButton = memo(PureAttachmentsButton);
-
-function PureStopButton({
-  stop,
-  setMessages,
-}: {
-  stop: () => void;
-  setMessages: UseChatHelpers['setMessages'];
-}) {
-  return (
-    <Button
-      data-testid="stop-button"
-      className="rounded-full p-1.5 h-fit border dark:border-zinc-600"
-      onClick={(event) => {
-        event.preventDefault();
-        stop();
-        setMessages((messages) => messages);
-      }}
-    >
-      <StopIcon size={14} />
-    </Button>
-  );
-}
-
-const StopButton = memo(PureStopButton);
-
-function PureSendButton({
-  submitForm,
-  input,
-  uploadQueue,
-}: {
-  submitForm: () => void;
-  input: string;
-  uploadQueue: Array<string>;
-}) {
-  return (
-    <Button
-      data-testid="send-button"
-      className="rounded-full p-1.5 h-fit border dark:border-zinc-600"
-      onClick={(event) => {
-        event.preventDefault();
-        submitForm();
-      }}
-      disabled={input.length === 0 || uploadQueue.length > 0}
-    >
-      <ArrowUpIcon size={14} />
-    </Button>
-  );
-}
-
-const SendButton = memo(PureSendButton, (prevProps, nextProps) => {
-  if (prevProps.uploadQueue.length !== nextProps.uploadQueue.length)
-    return false;
-  if (prevProps.input !== nextProps.input) return false;
-  return true;
-});
-
-function PureFeatureToggleButton({
-  icon,
-  isActive,
-  onClick,
-  tooltip,
-  disabled,
-}: {
-  icon: React.ReactNode;
-  isActive: boolean;
-  onClick: () => void;
-  tooltip: string;
-  disabled: boolean;
-}) {
-  return (
-    <Button
-      className={`rounded-md p-2 h-8 transition-colors border ${
-        isActive
-          ? 'bg-primary/10 text-primary border-primary/20'
-          : 'bg-transparent border-zinc-200 dark:border-zinc-700'
-      }`}
-      onClick={(event) => {
-        event.preventDefault();
-        onClick();
-      }}
-      disabled={disabled}
-      variant="ghost"
-      title={tooltip}
-    >
-      {icon}
-    </Button>
-  );
-}
-
-const FeatureToggleButton = memo(PureFeatureToggleButton);

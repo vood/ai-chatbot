@@ -26,6 +26,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { WandSparklesIcon } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // Define sample prompts
 const samplePrompts = [
@@ -346,8 +347,19 @@ export default function PromptsPage() {
           </div>
 
           {loading ? (
-            <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white"></div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+              {Array.from({ length: 10 }).map((_, index) => (
+                <div
+                  // biome-ignore lint:
+                  key={index}
+                  className="flex flex-col items-center text-center p-4 rounded-lg border border-border bg-card"
+                >
+                  <Skeleton className="mb-2 p-2 rounded-full h-[36px] w-[36px]" />
+                  <Skeleton className="h-5 w-3/4 mb-2" />
+                  <Skeleton className="h-4 w-full mb-1" />
+                  <Skeleton className="h-4 w-5/6 mb-3" />
+                </div>
+              ))}
             </div>
           ) : prompts.length > 0 ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
