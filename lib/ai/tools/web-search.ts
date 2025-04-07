@@ -55,7 +55,7 @@ function searchVideos(query: string) {
   });
 }
 
-const webSearch = tool({
+export const webSearch = tool({
   description: 'Search Google for information on any topic',
   parameters: z.object({
     query: z.string(),
@@ -95,5 +95,3 @@ const webSearch = tool({
     }
   },
 });
-
-export default webSearch;

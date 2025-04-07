@@ -20,19 +20,20 @@ import {
   getTrailingMessageId,
 } from '@/lib/utils';
 import { generateTitleFromUserMessage } from '../../actions';
-import { createDocument } from '@/lib/ai/tools/create-document';
-import { updateDocument } from '@/lib/ai/tools/update-document';
-import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
-import { getWeather } from '@/lib/ai/tools/get-weather';
 import { isProductionEnvironment } from '@/lib/constants';
 import { myProvider, getLanguageModel } from '@/lib/ai/providers';
 import type { Json } from '@/supabase/types';
-import webSearch from '@/lib/ai/tools/web-search';
-import { requestContractFields } from '@/lib/ai/tools/request-contract-fields';
-import { sendDocumentForSigning } from '@/lib/ai/tools/send-document-for-signing';
 import { z } from 'zod';
-import { imageGenerationTools } from '@/lib/ai/tools/generate-image';
-
+import {
+  webSearch,
+  requestContractFields,
+  requestSuggestions,
+  imageGenerationTools,
+  createDocument,
+  updateDocument,
+  sendDocumentForSigning,
+  getWeather,
+} from '@/lib/ai/tools';
 export const maxDuration = 60;
 
 // Define Zod schema for the request body
