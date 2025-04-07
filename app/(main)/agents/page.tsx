@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import { toast } from 'sonner';
 import {
   SparklesIcon,
@@ -56,15 +57,15 @@ import { PageHeader } from '@/components/ui/page-header';
 import { ModelSelector } from '@/components/model-selector';
 import type { OpenRouterModel } from '@/components/model-selector';
 import { Slider } from '@/components/ui/slider';
-import { VisibilitySelector } from '@/components/visibility-selector';
-import type { VisibilityType } from '@/components/visibility-selector';
-import { ReactNode } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Loader2 } from 'lucide-react';
+import { AvatarUpload } from '@/components/avatar-upload';
+import { createClient } from '@/lib/supabase/client';
 
 // Define Zod schema for Agent form validation
 const agentSchema = z.object({
@@ -80,21 +81,19 @@ const agentSchema = z.object({
     .number()
     .int({ message: 'Context length must be an integer' })
     .min(1, { message: 'Context length must be positive' }),
-  image_path: z.string().optional(),
+  // Use image_path (assuming it exists in the table) for the public URL
+  image_path: z.string().url().optional().nullable(), // Public URL
   include_profile_context: z.boolean(),
   include_workspace_instructions: z.boolean(),
   conversation_starters: z.array(z.string()).optional(),
-  embeddings_provider: z
-    .string()
-    .min(1, { message: 'Embeddings provider is required' }),
   sharing: z.string().min(1, { message: 'Sharing status is required' }),
 });
 
 // Use Zod's inference for the form data type
 type AgentFormData = z.infer<typeof agentSchema>;
 
-// Define Agent type based on assistants table
-type Agent = Tables<'assistants'>;
+// Revert Agent type to use base assistants type (assuming image_path exists there)
+type Agent = Tables<'assistants'>; // Assuming image_path: string | null
 
 // Remove sample prompts
 // const samplePrompts = [...];
@@ -135,6 +134,17 @@ export default function AgentsPage() {
   const [selectedModel, setSelectedModel] = useState<OpenRouterModel | null>(
     null,
   );
+  const [isSubmitting, setIsSubmitting] = useState(false); // Add submitting state
+
+  // State for image upload (using image_path)
+  const [agentImagePreview, setAgentImagePreview] = useState<
+    string | undefined
+  >();
+  const [agentImageFile, setAgentImageFile] = useState<File | null>(null);
+  // State to track the *storage path* for deletion purposes
+  const [agentStoragePath, setAgentStoragePath] = useState<
+    string | undefined
+  >();
 
   // Initialize react-hook-form
   const form = useForm<AgentFormData>({
@@ -146,50 +156,194 @@ export default function AgentsPage() {
       model: '',
       temperature: 1,
       context_length: 4096,
-      image_path: '',
+      image_path: '', // Initialize image_path
       include_profile_context: true,
       include_workspace_instructions: true,
       conversation_starters: [],
-      embeddings_provider: 'openai',
       sharing: 'private',
     },
   });
 
+  // Function to reset image state
+  const resetImageState = () => {
+    setAgentImagePreview(undefined);
+    setAgentImageFile(null);
+    setAgentStoragePath(undefined);
+  };
+
+  // Function to extract storage path from public URL (basic example)
+  // This might need adjustment based on your actual Supabase URL structure
+  const getStoragePathFromUrl = (
+    url: string | null | undefined,
+  ): string | undefined => {
+    if (!url) return undefined;
+    try {
+      const urlParts = new URL(url);
+      // Example: https://<project_ref>.supabase.co/storage/v1/object/public/assistant_images/user_id/agent_id/file.png
+      // Needs to extract the part after the bucket name
+      const pathPrefix = `/storage/v1/object/public/assistant_images/`;
+      if (urlParts.pathname.startsWith(pathPrefix)) {
+        return urlParts.pathname.substring(pathPrefix.length);
+      }
+    } catch (e) {
+      console.error('Error parsing image URL for storage path:', e);
+    }
+    return undefined;
+  };
+
   // Combined submit handler
   const onSubmit: SubmitHandler<AgentFormData> = async (data) => {
-    if (selectedAgentId) {
-      // Update existing agent
-      await saveEditedAgent(data);
-    } else {
-      // Create new agent
-      await handleAddAgent(data);
+    setIsSubmitting(true);
+    let imageChanged = false;
+    let newImageUrl: string | null | undefined = data.image_path; // Start with existing value
+    let newStoragePath: string | undefined = agentStoragePath; // Start with existing path
+    const oldImageUrl = form.getValues('image_path'); // URL before potential changes
+    const oldStoragePath = agentStoragePath; // Path before potential changes
+
+    try {
+      const supabase = createClient();
+
+      // --- Image Upload/Removal Logic ---
+      if (agentImageFile) {
+        // Case 1: New file selected for upload
+        imageChanged = true;
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (!sessionData?.session?.user) {
+          throw new Error('User not authenticated for image upload');
+        }
+
+        const userId = sessionData.session.user.id;
+        const timestamp = Date.now();
+        const fileExt = agentImageFile.name.split('.').pop() || 'png';
+        const agentIdPart = selectedAgentId || `new_${timestamp}`;
+        const fileName = `${timestamp}.${fileExt}`;
+        // Store in assistant_images bucket
+        const filePath = `${userId}/${agentIdPart}/${fileName}`;
+
+        console.log(`Uploading agent image to: assistant_images/${filePath}`);
+
+        // Upload the new file
+        const { error: uploadError } = await supabase.storage
+          .from('assistant_images') // Use specified bucket
+          .upload(filePath, agentImageFile, {
+            upsert: true, // Overwrite if same path somehow exists
+          });
+
+        if (uploadError) {
+          throw new Error(
+            `Error uploading agent image: ${uploadError.message}`,
+          );
+        }
+
+        // Get the public URL
+        const { data: urlData } = supabase.storage
+          .from('assistant_images')
+          .getPublicUrl(filePath);
+
+        newImageUrl = urlData.publicUrl;
+        newStoragePath = filePath;
+        console.log(`Image uploaded: ${newImageUrl}`);
+
+        // Delete the old image *after* successful upload if path exists and differs
+        if (oldStoragePath && oldStoragePath !== newStoragePath) {
+          console.log(`Removing old agent image: ${oldStoragePath}`);
+          await supabase.storage
+            .from('assistant_images')
+            .remove([oldStoragePath])
+            .then(({ error: deleteError }) => {
+              if (deleteError) {
+                console.warn('Failed to remove old agent image:', deleteError);
+              }
+            });
+        }
+        // Update state after successful upload
+        setAgentImagePreview(newImageUrl); // Update preview URL
+        setAgentStoragePath(newStoragePath); // Update storage path state
+        setAgentImageFile(null); // Clear the file state
+      } else if (agentImagePreview === undefined && oldImageUrl) {
+        // Case 2: Image explicitly removed (preview cleared, but there was an old URL)
+        imageChanged = true;
+        newImageUrl = null;
+        newStoragePath = undefined;
+
+        // Delete the old image from storage if path exists
+        if (oldStoragePath) {
+          console.log(
+            `Removing agent image due to removal action: ${oldStoragePath}`,
+          );
+          await supabase.storage
+            .from('assistant_images')
+            .remove([oldStoragePath])
+            .then(({ error: deleteError }) => {
+              if (deleteError) {
+                console.warn(
+                  'Failed to remove old agent image on removal:',
+                  deleteError,
+                );
+              }
+            });
+        }
+        // Update state
+        setAgentImagePreview(undefined);
+        setAgentStoragePath(undefined);
+      }
+      // Case 3: No file selected, preview not cleared -> no change to image needed
+      // --- End Image Logic ---
+
+      // Prepare payload for API
+      const payload = { ...data };
+      if (imageChanged) {
+        payload.image_path = newImageUrl; // Update image_path in payload
+      }
+
+      console.log('Submitting agent data:', payload);
+
+      if (selectedAgentId) {
+        // Update existing agent
+        await saveEditedAgent(payload);
+      } else {
+        // Create new agent
+        await handleAddAgent(payload);
+      }
+    } catch (error) {
+      console.error('Error during agent submission:', error);
+      toast.error('Failed to save agent', {
+        description:
+          error instanceof Error
+            ? error.message
+            : 'An unexpected error occurred.',
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleAddAgent = async (formData: AgentFormData) => {
-    try {
-      // TODO: Update API endpoint when created
-      const response = await fetch('/api/agents', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
+    // API call remains similar, sending formData which includes image_path
+    console.log('Calling API to add agent:', formData);
+    const response = await fetch('/api/agents', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formData),
+    });
 
-      if (!response.ok) {
-        throw new Error('Failed to add agent');
-      }
-
-      toast.success('Agent added successfully');
-      setShowAddDialog(false);
-      form.reset(); // Reset form state
-      refetchAgents();
-    } catch (error) {
-      toast.error('Failed to add agent');
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({})); // Graceful error parsing
+      throw new Error(errorData.error || 'Failed to add agent from API');
     }
+
+    toast.success('Agent added successfully');
+    setShowAddDialog(false);
+    form.reset(); // Reset form state
+    resetImageState(); // Reset image state
+    refetchAgents();
   };
 
   const handleEditAgent = (agent: Agent) => {
     setSelectedAgentId(agent.id);
+    const imageUrl = agent.image_path; // Get the image URL from agent data
+    const storagePath = getStoragePathFromUrl(imageUrl); // Derive storage path
+
     // Reset form with the selected agent's data
     form.reset({
       name: agent.name,
@@ -198,19 +352,22 @@ export default function AgentsPage() {
       model: agent.model,
       temperature: agent.temperature,
       context_length: agent.context_length,
-      image_path: agent.image_path ?? '', // Handle null image_path
+      image_path: imageUrl ?? '', // Set image_path field
       include_profile_context: agent.include_profile_context,
       include_workspace_instructions: agent.include_workspace_instructions,
       // Ensure conversation_starters is an array, handle null/undefined
       conversation_starters: Array.isArray(agent.conversation_starters)
         ? agent.conversation_starters
         : [],
-      embeddings_provider: agent.embeddings_provider,
       sharing: agent.sharing,
     });
 
+    // Set image state for the AvatarUpload component
+    setAgentImagePreview(imageUrl ?? undefined);
+    setAgentStoragePath(storagePath);
+    setAgentImageFile(null); // Ensure no stale file is kept
+
     // Set the selected model ID for the ModelSelector
-    // The ModelSelector will handle fetching the model details
     setSelectedModel(null); // Reset the model object, it will be populated when selected
 
     setShowEditDialog(true);
@@ -218,53 +375,93 @@ export default function AgentsPage() {
 
   const saveEditedAgent = async (formData: AgentFormData) => {
     if (!selectedAgentId) return;
+    // API call remains similar, sending formData with image_path
+    console.log(`Calling API to update agent ${selectedAgentId}:`, formData);
+    const response = await fetch(`/api/agents?id=${selectedAgentId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formData),
+    });
 
-    try {
-      // TODO: Update API endpoint when created
-      const response = await fetch(`/api/agents?id=${selectedAgentId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update agent');
-      }
-
-      toast.success('Agent updated successfully');
-      setShowEditDialog(false);
-      form.reset(); // Reset form state
-      setSelectedAgentId(null); // Clear selected ID after successful edit
-      refetchAgents();
-    } catch (error) {
-      toast.error('Failed to update agent');
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({})); // Graceful error parsing
+      throw new Error(errorData.error || 'Failed to update agent from API');
     }
+
+    toast.success('Agent updated successfully');
+    setShowEditDialog(false);
+    form.reset(); // Reset form state
+    resetImageState(); // Reset image state
+    setSelectedAgentId(null); // Clear selected ID after successful edit
+    refetchAgents();
   };
 
   const confirmDeleteAgent = (id: string) => {
     setSelectedAgentId(id);
+    // Find the agent to potentially get the storage path for deletion
+    const agentToDelete = agents.find((a) => a.id === id);
+    const storagePathToDelete = getStoragePathFromUrl(
+      agentToDelete?.image_path,
+    );
+    setAgentStoragePath(storagePathToDelete); // Store path for potential delete
     setShowDeleteDialog(true);
   };
 
   const handleDeleteAgent = async () => {
     if (!selectedAgentId) return;
+    setIsSubmitting(true);
+    const storagePathToDelete = agentStoragePath; // Get path stored in confirmDeleteAgent
 
     try {
-      // TODO: Update API endpoint when created
+      // Attempt to delete from DB first
       const response = await fetch(`/api/agents?id=${selectedAgentId}`, {
         method: 'DELETE',
       });
 
       if (!response.ok) {
-        throw new Error('Failed to delete agent');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to delete agent from API');
+      }
+
+      // If DB deletion successful, attempt to delete image from storage
+      if (storagePathToDelete) {
+        console.log(
+          `Deleting agent image from storage: ${storagePathToDelete}`,
+        );
+        const supabase = createClient();
+        await supabase.storage
+          .from('assistant_images')
+          .remove([storagePathToDelete])
+          .then(({ error: deleteError }) => {
+            if (deleteError) {
+              // Log warning, but don't fail the whole operation
+              console.warn(
+                `Failed to delete agent image from storage: ${deleteError.message}`,
+              );
+              toast.warning(
+                'Agent deleted, but failed to remove image from storage.',
+              );
+            } else {
+              console.log('Agent image successfully deleted from storage.');
+            }
+          });
       }
 
       toast.success('Agent deleted successfully');
       setShowDeleteDialog(false);
       setSelectedAgentId(null);
+      setAgentStoragePath(undefined); // Clear stored path
       refetchAgents();
     } catch (error) {
-      toast.error('Failed to delete agent');
+      console.error('Error deleting agent:', error);
+      toast.error('Failed to delete agent', {
+        description:
+          error instanceof Error
+            ? error.message
+            : 'An unexpected error occurred.',
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -274,7 +471,8 @@ export default function AgentsPage() {
     form.setValue('model', model.slug);
   };
 
-  // No longer need manual resetForm, use form.reset()
+  // Watch agent name for AvatarUpload fallback
+  const agentName = form.watch('name');
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
@@ -284,7 +482,11 @@ export default function AgentsPage() {
         actions={[
           {
             label: 'Add Agent',
-            onClick: () => setShowAddDialog(true),
+            onClick: () => {
+              form.reset(); // Reset form for add
+              resetImageState(); // Reset image state for add
+              setShowAddDialog(true);
+            },
             icon: <PlusIcon size={16} />,
           },
         ]}
@@ -296,7 +498,7 @@ export default function AgentsPage() {
               {Array.from({ length: 5 }).map((_, index) => (
                 <div
                   // biome-ignore lint: TODO: fix this
-                  key={`skeleton-${index}`} // Use a more specific key
+                  key={`skeleton-${index}`}
                   className="flex flex-col items-center text-center p-4 rounded-lg border bg-card/50"
                 >
                   <Skeleton className="w-10 h-10 rounded-full mb-2" />
@@ -322,8 +524,17 @@ export default function AgentsPage() {
                   }}
                   className="flex flex-col items-center text-center p-4 rounded-lg border border-border bg-card hover:shadow-lg transition-shadow cursor-pointer"
                 >
-                  <div className="mb-2 p-2 rounded-full bg-primary/10 text-primary">
-                    <SparklesIcon size={20} />
+                  {/* Display Agent Image (from image_path) or Fallback Icon */}
+                  <div className="mb-2 flex items-center justify-center h-10 w-10 rounded-full bg-primary/10 text-primary overflow-hidden">
+                    {agent.image_path ? (
+                      <img
+                        src={agent.image_path}
+                        alt={`${agent.name} logo`}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <SparklesIcon size={20} />
+                    )}
                   </div>
                   <h3
                     className="font-semibold mb-1 truncate w-full"
@@ -349,6 +560,7 @@ export default function AgentsPage() {
               <Button
                 onClick={() => {
                   form.reset();
+                  resetImageState();
                   setShowAddDialog(true);
                 }}
               >
@@ -356,7 +568,7 @@ export default function AgentsPage() {
               </Button>
             </div>
           )}
-          {/* Add/Edit Dialog - Use the same dialog, title changes based on selectedAgentId */}
+          {/* Add/Edit Dialog */}
           <Dialog
             open={showAddDialog || showEditDialog}
             onOpenChange={(open) => {
@@ -364,6 +576,7 @@ export default function AgentsPage() {
                 setShowAddDialog(false);
                 setShowEditDialog(false);
                 form.reset(); // Reset form on close
+                resetImageState(); // Reset image state on close
                 setSelectedAgentId(null);
                 setSelectedModel(null); // Reset selected model
               }
@@ -377,15 +590,64 @@ export default function AgentsPage() {
                 <DialogDescription>
                   {selectedAgentId
                     ? 'Update the agent configuration.'
-                    : 'Configure a new agent. Use {variable} in the prompt for template variables.'}
+                    : 'Configure a new agent.'}
                 </DialogDescription>
               </DialogHeader>
               {/* Form managed by react-hook-form */}
               <Form {...form}>
                 <form
+                  id="agent-form"
                   onSubmit={form.handleSubmit(onSubmit)}
                   className="space-y-4 max-h-[70vh] overflow-y-auto pr-3"
                 >
+                  {/* Agent Image Upload Field (using image_path state) */}
+                  <FormItem className="grid grid-cols-4 items-center gap-4">
+                    <FormLabel className="text-right col-span-1">
+                      Image
+                    </FormLabel>
+                    <FormControl className="col-span-3">
+                      <AvatarUpload
+                        initialImage={agentImagePreview} // Use image preview state
+                        name={agentName || 'Agent'} // Use watched name
+                        size="lg"
+                        onImageChange={(file) => {
+                          if (file) {
+                            console.log('Agent image selected:', file.name);
+                            setAgentImageFile(file); // Store the file
+                            // Generate preview
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              if (event.target?.result) {
+                                setAgentImagePreview(
+                                  event.target.result as string,
+                                ); // Update preview
+                              }
+                            };
+                            reader.readAsDataURL(file);
+                            setTimeout(() => {
+                              toast.info('Image selected', {
+                                description:
+                                  'New image will be uploaded on save.',
+                              });
+                            }, 0);
+                          } else {
+                            console.log('Agent image removed');
+                            // Handle image removal
+                            setAgentImagePreview(undefined); // Clear preview
+                            setAgentImageFile(null); // Clear file
+                            // Keep agentStoragePath until submit to handle deletion
+                            setTimeout(() => {
+                              toast.info('Image removed', {
+                                description:
+                                  'Agent image will be removed on save.',
+                              });
+                            }, 0);
+                          }
+                        }}
+                      />
+                    </FormControl>
+                  </FormItem>
+
                   <FormField
                     control={form.control}
                     name="name"
@@ -414,6 +676,7 @@ export default function AgentsPage() {
                             placeholder="Describe what this agent does..."
                             rows={3}
                             {...field}
+                            value={field.value ?? ''} // Ensure value is never null
                           />
                         </FormControl>
                         <FormMessage className="col-start-2 col-span-3" />
@@ -497,7 +760,7 @@ export default function AgentsPage() {
                           <div className="flex items-center gap-4">
                             <Slider
                               min={1000}
-                              max={32000}
+                              max={32000} // Consider making this dynamic based on selected model
                               step={1000}
                               value={[field.value]}
                               onValueChange={(vals) => field.onChange(vals[0])}
@@ -507,25 +770,6 @@ export default function AgentsPage() {
                               {field.value.toLocaleString()}
                             </span>
                           </div>
-                        </FormControl>
-                        <FormMessage className="col-start-2 col-span-3" />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="image_path"
-                    render={({ field }) => (
-                      <FormItem className="grid grid-cols-4 items-center gap-4">
-                        <FormLabel className="text-right col-span-1">
-                          Image Path
-                        </FormLabel>
-                        <FormControl className="col-span-3">
-                          <Input
-                            placeholder="Optional: path/to/agent/image.png"
-                            {...field}
-                            value={field.value ?? ''}
-                          />
                         </FormControl>
                         <FormMessage className="col-start-2 col-span-3" />
                       </FormItem>
@@ -557,22 +801,6 @@ export default function AgentsPage() {
                               )
                             }
                           />
-                        </FormControl>
-                        <FormMessage className="col-start-2 col-span-3" />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="embeddings_provider"
-                    render={({ field }) => (
-                      <FormItem className="grid grid-cols-4 items-center gap-4">
-                        <FormLabel className="text-right col-span-1">
-                          Embeddings
-                        </FormLabel>
-                        <FormControl className="col-span-3">
-                          {/* TODO: Replace with Select: openai, local */}
-                          <Input placeholder="openai or local" {...field} />
                         </FormControl>
                         <FormMessage className="col-start-2 col-span-3" />
                       </FormItem>
@@ -675,8 +903,6 @@ export default function AgentsPage() {
                       />
                     </div>
                   </div>
-
-                  {/* Keep DialogFooter outside the form element but inside DialogContent */}
                 </form>
               </Form>
               <DialogFooter className="pt-4 justify-between">
@@ -691,6 +917,7 @@ export default function AgentsPage() {
                         setShowEditDialog(false); // Close edit dialog first
                         confirmDeleteAgent(selectedAgentId);
                       }}
+                      disabled={isSubmitting} // Disable while any submission is happening
                     >
                       <TrashIcon size={14} /> Delete
                     </Button>
@@ -706,20 +933,29 @@ export default function AgentsPage() {
                       setShowAddDialog(false);
                       setShowEditDialog(false);
                       form.reset();
+                      resetImageState(); // Also reset image state on cancel
                       setSelectedAgentId(null);
                     }}
+                    disabled={isSubmitting}
                     className="mr-2"
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" form="agent-form">
-                    {' '}
-                    {/* Associate with form */}{' '}
-                    {form.formState.isSubmitting
-                      ? 'Saving...'
-                      : selectedAgentId
-                        ? 'Save Changes'
-                        : 'Create Agent'}
+                  <Button
+                    type="submit" // Submit the form with the ID "agent-form"
+                    form="agent-form"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : selectedAgentId ? (
+                      'Save Changes'
+                    ) : (
+                      'Create Agent'
+                    )}
                   </Button>
                 </div>
               </DialogFooter>
@@ -739,12 +975,22 @@ export default function AgentsPage() {
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel disabled={isSubmitting}>
+                  Cancel
+                </AlertDialogCancel>
                 <AlertDialogAction
                   onClick={handleDeleteAgent}
+                  disabled={isSubmitting} // Disable while deleting
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 >
-                  Delete Agent
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    'Delete Agent'
+                  )}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
