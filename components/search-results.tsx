@@ -197,7 +197,7 @@ function SourceIcon({
 }) {
   const sizeClass = size === 'small' ? 'w-5 h-5' : 'w-6 h-6';
   const domain = extractDomain(result.link, true);
-  const faviconUrl = `https://www.google.com/s2/favicons?size=64&domain=${domain}`;
+  const faviconUrl = `https://www.google.com/s2/favicons?sz=128&domain=${domain}`;
 
   return (
     <div
