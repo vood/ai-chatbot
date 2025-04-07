@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { WandSparklesIcon } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { SidebarToggle } from '@/components/sidebar-toggle';
 
 // Define sample prompts
 const samplePrompts = [
@@ -324,8 +325,9 @@ export default function PromptsPage() {
 
   return (
     <div className="flex-1 flex flex-col overflow-auto">
-      <div className="flex justify-between items-center h-12 px-4 md:px-6 border-b bg-background w-full shrink-0">
+      <div className="flex justify-between items-center h-12 px-2 border-b bg-background w-full shrink-0">
         <h1 className="text-lg font-semibold flex items-center gap-2">
+          <SidebarToggle />
           <SparklesIcon size={20} />
           Prompts
         </h1>

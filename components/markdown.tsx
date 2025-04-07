@@ -3,12 +3,24 @@ import React, { memo } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { CodeBlock } from './code-block';
+import { CodeEditor } from './code-editor';
 
 const components: Partial<Components> = {
-  // @ts-expect-error
-  code: CodeBlock,
-  pre: ({ children }) => <>{children}</>,
-  p: ({ children }) => {
+  code: ({ children, node, ...props }) => {
+    return (
+      <CodeBlock node={node} {...props} inline={true}>
+        {children}
+      </CodeBlock>
+    );
+  },
+  pre: ({ node, children, ...props }) => {
+    return (
+      <CodeBlock node={node} {...props} inline={false}>
+        {children}
+      </CodeBlock>
+    );
+  },
+  p: ({ children, node, ...props }) => {
     // Check if any of the children are pre elements
     const hasPreChild = React.Children.toArray(children).some(
       (child) => React.isValidElement(child) && child.type === 'pre',
