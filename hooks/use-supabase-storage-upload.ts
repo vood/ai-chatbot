@@ -40,9 +40,10 @@ export function useSupabaseStorageUpload({
         return null; // Stop upload if user is not found
       }
 
+      const uuid = crypto.randomUUID();
       const bucketName = bucketResolver(file);
       // Construct path with user ID prefix
-      const filePath = `${user.id}/${Date.now()}-${file.name}`;
+      const filePath = `${user.id}/${uuid}`;
 
       try {
         // Removed setIsUploading(true) from here, moved to handleFileChange

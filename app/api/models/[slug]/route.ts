@@ -12,9 +12,9 @@ interface OpenRouterModel {
 // Route handler for GET /api/models/[slug]
 export async function GET(
   request: Request,
-  { params }: { params: { slug: string } },
+  { params }: { params: Promise<{ slug: string }> },
 ) {
-  const slug = params.slug;
+  const slug = (await params).slug;
 
   if (!slug) {
     return NextResponse.json(

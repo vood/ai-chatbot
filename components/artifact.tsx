@@ -103,6 +103,14 @@ export function findAnnotationPosition(
   }
 }
 
+// Define the model type locally (mirroring multimodal-input)
+interface OpenRouterModel {
+  slug: string;
+  endpoint?: {
+    supports_tool_parameters: boolean;
+  };
+}
+
 function PureArtifact({
   chatId,
   selectedChatModel,
@@ -119,6 +127,8 @@ function PureArtifact({
   setMessages,
   reload,
   isReadonly,
+  supportsTools,
+  onModelChange,
 }: {
   chatId: string;
   input: string;
@@ -135,6 +145,8 @@ function PureArtifact({
   handleSubmit: UseChatHelpers['handleSubmit'];
   reload: UseChatHelpers['reload'];
   isReadonly: boolean;
+  supportsTools: boolean;
+  onModelChange: (model: OpenRouterModel) => void;
 }) {
   const { artifact, setArtifact, metadata, setMetadata } = useArtifact();
   const [annotations, setAnnotations] = useState<DocumentAnnotation<any>[]>([]);
@@ -426,6 +438,8 @@ function PureArtifact({
                 <form className="flex flex-row gap-2 relative items-end w-full px-4 pb-4">
                   <MultimodalInput
                     selectedChatModel={selectedChatModel}
+                    onModelChange={onModelChange}
+                    supportsTools={supportsTools}
                     chatId={chatId}
                     input={input}
                     setInput={setInput}
@@ -603,11 +617,25 @@ function PureArtifact({
 }
 
 export const Artifact = memo(PureArtifact, (prevProps, nextProps) => {
-  if (prevProps.status !== nextProps.status) return false;
-  if (!equal(prevProps.votes, nextProps.votes)) return false;
-  if (prevProps.input !== nextProps.input) return false;
-  if (prevProps.selectedChatModel !== nextProps.selectedChatModel) return false;
-  if (!equal(prevProps.messages, nextProps.messages)) return false;
-
-  return true;
+  // Use deep equals for complex objects like messages and votes
+  return (
+    prevProps.chatId === nextProps.chatId &&
+    prevProps.selectedChatModel === nextProps.selectedChatModel &&
+    prevProps.input === nextProps.input &&
+    prevProps.status === nextProps.status &&
+    prevProps.isReadonly === nextProps.isReadonly &&
+    prevProps.supportsTools === nextProps.supportsTools &&
+    prevProps.onModelChange === nextProps.onModelChange &&
+    equal(prevProps.votes, nextProps.votes) &&
+    equal(prevProps.messages, nextProps.messages) &&
+    equal(prevProps.attachments, nextProps.attachments) &&
+    // Compare function references directly
+    prevProps.setInput === nextProps.setInput &&
+    prevProps.handleSubmit === nextProps.handleSubmit &&
+    prevProps.stop === nextProps.stop &&
+    prevProps.setAttachments === nextProps.setAttachments &&
+    prevProps.setMessages === nextProps.setMessages &&
+    prevProps.append === nextProps.append &&
+    prevProps.reload === nextProps.reload
+  );
 });

@@ -83,7 +83,9 @@ export async function auth(): Promise<UserWithWorkspace | null> {
   // get worksspaces from jwt claims
   const { data: session } = await supabase.auth.getSession();
 
-  const decoded = jwtDecode(session.session?.access_token ?? '');
+  if (!session.session?.access_token) {
+    return null;
+  }
 
   // Basic error logging, consider more robust error handling
   if (error) {

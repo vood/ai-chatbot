@@ -34,8 +34,6 @@ type EditorProps = {
   onAnnotationSelect?: (annotation: UIAnnotation | null) => void;
 };
 
-export const pmu = new ProseMirrorUnified([new GFMExtension()]);
-
 function PureEditor({
   content,
   onSaveContent,
@@ -47,14 +45,16 @@ function PureEditor({
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<EditorView | null>(null);
 
+  const pmu = new ProseMirrorUnified([new GFMExtension()]);
+
   useEffect(() => {
     if (containerRef.current && !editorRef.current) {
       const state = EditorState.create({
-        doc: pmu.parse(content),
+        doc: content ? pmu.parse(content) : pmu.parse(''),
         plugins: [
           pmu.inputRulesPlugin(),
           pmu.keymapPlugin(),
-          ...exampleSetup({ schema: documentSchema, menuBar: false }),
+          ...exampleSetup({ schema: pmu.schema(), menuBar: false }),
           inputRules({
             rules: [
               headingRule(1),

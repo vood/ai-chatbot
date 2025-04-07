@@ -5,7 +5,7 @@ import {
   auth,
   createServiceRoleClient,
 } from '@/lib/supabase/server';
-import type { Tables } from '@/supabase/types';
+import type { Tables, TablesInsert, TablesUpdate } from '@/supabase/types';
 import type { ArtifactKind } from '@/components/artifact';
 import type {
   Chat,
@@ -47,6 +47,10 @@ type SaveChatParams = {
   folder_id?: string | null;
   sharing?: string; // Default is 'private' in schema, but can be overridden
 };
+
+// Define explicit ProfileInsert type
+type ProfileInsert = TablesInsert<'profiles'>;
+type ProfileUpdate = TablesUpdate<'profiles'>;
 
 export async function saveChat(params: SaveChatParams) {
   const supabase = await createClient();
@@ -1289,6 +1293,146 @@ export async function deletePrompt({
     return { success: true };
   } catch (error) {
     console.error('Error in deletePrompt function:', error);
+    throw error;
+  }
+}
+
+// Get profile data for a user
+export async function getUserProfile({ userId }: { userId: string }) {
+  const supabase = await createClient();
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select(`
+        display_name,
+        image_url,
+        image_path,
+        profile_context,
+        system_prompt_template,
+        large_text_paste_threshold,
+        bio,
+        has_onboarded,
+        use_azure_openai,
+        username,
+        plan,
+        model_visibility
+      `)
+      .eq('user_id', userId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      console.error('Error fetching profile data:', error);
+      throw error;
+    }
+
+    return data || {};
+  } catch (error) {
+    console.error('Error in getUserProfile function:', error);
+    throw error;
+  }
+}
+
+// Update profile data for a user
+export async function updateUserProfile({
+  userId,
+  profileData,
+}: {
+  userId: string;
+  profileData: Partial<ProfileUpdate>;
+}) {
+  const supabase = await createClient();
+  try {
+    // Get existing profile data to ensure we're not removing required fields
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    // Only include fields that were explicitly provided in the request
+    // This prevents overriding fields that weren't meant to be updated
+    const updateData: ProfileUpdate = {
+      updated_at: new Date().toISOString(),
+    };
+
+    // Handle required fields with checks to make sure they're never null
+    if (profileData.image_url !== undefined) {
+      updateData.image_url =
+        profileData.image_url ||
+        existingProfile?.image_url ||
+        'https://www.gravatar.com/avatar/?d=mp';
+    }
+
+    if (profileData.image_path !== undefined) {
+      updateData.image_path =
+        profileData.image_path || existingProfile?.image_path || 'default.png';
+    }
+
+    // Only add other fields to the update if they were explicitly provided
+    if (profileData.display_name !== undefined)
+      updateData.display_name = profileData.display_name;
+    if (profileData.profile_context !== undefined)
+      updateData.profile_context = profileData.profile_context;
+    if (profileData.system_prompt_template !== undefined)
+      updateData.system_prompt_template = profileData.system_prompt_template;
+    if (profileData.large_text_paste_threshold !== undefined)
+      updateData.large_text_paste_threshold =
+        profileData.large_text_paste_threshold;
+    if (profileData.model_visibility !== undefined)
+      updateData.model_visibility = profileData.model_visibility;
+    if (profileData.bio !== undefined) updateData.bio = profileData.bio;
+    if (profileData.has_onboarded !== undefined)
+      updateData.has_onboarded = profileData.has_onboarded;
+    if (profileData.use_azure_openai !== undefined)
+      updateData.use_azure_openai = profileData.use_azure_openai;
+    if (profileData.username !== undefined)
+      updateData.username = profileData.username;
+    if (profileData.plan !== undefined) updateData.plan = profileData.plan;
+
+    // Add all other fields that might be in the profiles table
+    Object.keys(profileData).forEach((key) => {
+      if (
+        key !== 'user_id' &&
+        key !== 'id' &&
+        key !== 'created_at' &&
+        updateData[key as keyof ProfileUpdate] === undefined
+      ) {
+        (updateData as any)[key] = (profileData as any)[key];
+      }
+    });
+
+    const { error } = await supabase
+      .from('profiles')
+      .update(updateData)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error saving profile data:', error);
+      throw error;
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error in updateUserProfile function:', error);
+    throw error;
+  }
+}
+
+// Delete a user account
+export async function deleteUserAccount({ userId }: { userId: string }) {
+  const supabase = await createServiceRoleClient();
+  try {
+    // Delete the user's auth account with cascade enabled
+    const { error } = await supabase.auth.admin.deleteUser(userId, true);
+
+    if (error) {
+      console.error('Error deleting user account:', error);
+      throw error;
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error in deleteUserAccount function:', error);
     throw error;
   }
 }

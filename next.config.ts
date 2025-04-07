@@ -9,6 +9,12 @@ const nextConfig: NextConfig = {
       {
         hostname: 'avatar.vercel.sh',
       },
+      {
+        hostname: 't0.gstatic.com',
+      },
+      {
+        hostname: 'openrouter.ai',
+      },
     ],
   },
 };

@@ -41,7 +41,16 @@ import {
   StopButton,
   FeatureToggleButton,
 } from './chat-buttons';
-import { useSupabaseStorageUpload } from '@/hooks/use-supabase-storage-upload'; // Import the new hook
+import { useSupabaseStorageUpload } from '@/hooks/use-supabase-storage-upload';
+
+// Define the type locally (or move to a shared types file)
+interface OpenRouterModel {
+  slug: string;
+  endpoint?: {
+    supports_tool_parameters: boolean;
+  };
+  // Add other fields if needed from ModelSelector's definition
+}
 
 function PureMultimodalInput({
   chatId,
@@ -58,6 +67,7 @@ function PureMultimodalInput({
   handleSubmit,
   className,
   supportsTools,
+  onModelChange,
 }: {
   selectedChatModel: string;
   chatId: string;
@@ -73,6 +83,7 @@ function PureMultimodalInput({
   handleSubmit: UseChatHelpers['handleSubmit'];
   className?: string;
   supportsTools: boolean;
+  onModelChange: (model: OpenRouterModel) => void;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { width } = useWindowSize();
@@ -183,6 +194,10 @@ function PureMultimodalInput({
 
     handleSubmit(undefined, {
       experimental_attachments: attachments,
+      data: {
+        webSearchEnabled: JSON.stringify(webSearchEnabled),
+        imageGenEnabled: JSON.stringify(imageGenEnabled),
+      },
     });
 
     setAttachments([]);
@@ -199,6 +214,8 @@ function PureMultimodalInput({
     setLocalStorageInput,
     width,
     chatId,
+    webSearchEnabled,
+    imageGenEnabled,
   ]);
 
   // Handle prompt selection and variable replacement
@@ -315,6 +332,7 @@ function PureMultimodalInput({
           <ModelSelector
             selectedModelId={selectedChatModel}
             className="min-w-[100px] text-xs border border-zinc-200 dark:border-zinc-700"
+            onSelectModel={onModelChange}
           />
           <FeatureToggleButton
             icon={<GlobeIcon size={14} />}
@@ -400,6 +418,10 @@ export const MultimodalInput = memo(
     ) {
       // Added function checks
       return false; // Props are different, re-render
+    }
+
+    if (prevProps.onModelChange !== nextProps.onModelChange) {
+      return false;
     }
 
     // If all checks pass, props are considered equal

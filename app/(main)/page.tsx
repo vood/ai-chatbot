@@ -9,7 +9,8 @@ export default async function Page() {
   const id = generateUUID();
 
   const cookieStore = await cookies();
-  const modelIdFromCookie = cookieStore.get('chat-model');
+  const selectedModelId =
+    cookieStore.get('chat-model')?.value || DEFAULT_CHAT_MODEL;
 
   return (
     <>
@@ -17,7 +18,7 @@ export default async function Page() {
         key={id}
         id={id}
         initialMessages={[]}
-        selectedChatModel={modelIdFromCookie?.value || DEFAULT_CHAT_MODEL}
+        selectedChatModel={selectedModelId}
         selectedVisibilityType="private"
         isReadonly={false}
       />

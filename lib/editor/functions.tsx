@@ -7,7 +7,8 @@ import { Markdown } from '@/components/markdown';
 
 import { documentSchema } from './config';
 import { createSuggestionWidget, type UISuggestion } from './suggestions';
-import { pmu } from '@/components/text-editor';
+import { GFMExtension } from 'prosemirror-remark';
+import { ProseMirrorUnified } from 'prosemirror-unified';
 
 export const buildDocumentFromContent = (content: string) => {
   const parser = DOMParser.fromSchema(documentSchema);
@@ -18,6 +19,7 @@ export const buildDocumentFromContent = (content: string) => {
 };
 
 export const buildContentFromDocument = (document: Node) => {
+  const pmu = new ProseMirrorUnified([new GFMExtension()]);
   return pmu.serialize(document);
 };
 
