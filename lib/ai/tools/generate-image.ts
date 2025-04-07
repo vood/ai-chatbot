@@ -35,7 +35,7 @@ function createImageModelTool(model: ImageModelDefinition) {
   const toolName = `generate_image_using_${toolIdentifier}`;
 
   return tool({
-    description: `Generates an image using the ${model.name} model. ${model.description || ''}`,
+    description: `Generates an image using the ${model.name} model. ${model.description || ''}. Never return the image to the user, it is displayed in the UI to the user already.`,
     parameters: imageParamsSchema,
     execute: async ({ prompt /*, aspectRatio, size */ }) => {
       const modelId = model.id;

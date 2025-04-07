@@ -70,7 +70,6 @@ export async function POST(request: Request) {
       id,
       messages,
       selectedChatModel,
-      supportsTools,
       selectedTools, // This is already correctly typed by the schema
     } = parsedData.data;
 
@@ -161,18 +160,16 @@ export async function POST(request: Request) {
           (toolName) => toolName in tools,
         ) as (keyof typeof tools)[];
 
+        const alwaysEnabledTools: (keyof typeof tools)[] = [
+          'sendDocumentForSigning',
+          'createDocument',
+          'updateDocument',
+          'requestSuggestions',
+        ];
         const activeToolNames =
-          supportsTools && validSelectedToolNames.length > 0
-            ? validSelectedToolNames
-            : undefined;
-
-        const activeTools = activeToolNames
-          ? Object.fromEntries(
-              Object.entries(tools).filter(([key]) =>
-                activeToolNames.includes(key as keyof typeof tools),
-              ),
-            )
-          : undefined;
+          validSelectedToolNames.length > 0
+            ? [...alwaysEnabledTools, ...validSelectedToolNames]
+            : alwaysEnabledTools;
 
         const result = streamText({
           model: selectedChatModel.startsWith('chat-')
@@ -184,7 +181,7 @@ export async function POST(request: Request) {
           experimental_activeTools: activeToolNames,
           experimental_transform: smoothStream({ chunking: 'word' }),
           experimental_generateMessageId: generateUUID,
-          tools: activeTools,
+          tools: tools,
           onFinish: async ({ response }) => {
             if (user.id) {
               try {
