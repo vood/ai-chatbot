@@ -9,6 +9,8 @@ import {
   useRef,
   useState,
 } from 'react';
+import Image from 'next/image'; // Import next/image for optimized images
+import ReactMarkdown from 'react-markdown'; // Import react-markdown
 
 import { saveChatModelAsCookie } from '@/app/(chat)/actions';
 import { Button } from '@/components/ui/button';
@@ -25,110 +27,57 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { CodeIcon } from '@/components/icons';
 
-import {
-  CheckCircleFillIcon,
-  ChevronDownIcon,
-  LogoOpenAI,
-  LogoAnthropic,
-  LogoGoogle,
-} from './icons';
+import { CheckCircleFillIcon, ChevronDownIcon } from './icons';
 
-// SearchIcon component
-function SearchIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="11" cy="11" r="8" />
-      <path d="m21 21-4.3-4.3" />
-    </svg>
-  );
-}
-
-// Meta logo component
-function LogoMeta({ size = 16 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 40 40"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M36.2145 21.404C36.2145 14.0592 31.1475 9.5 24.1378 9.5C17.0803 9.5 12 14.0676 12 21.4396C12 28.0247 16.1756 32.7437 22.0334 32.7437V25.3253H19.0551V21.4396H22.0334V18.4548C22.0334 14.8889 24.1237 13.0435 27.3635 13.0435C28.9133 13.0435 30.5358 13.3 30.5358 13.3V16.1731H28.7644C27.0262 16.1731 26.2422 17.3024 26.2422 18.4632V21.404H30.3555L29.8685 25.2896H26.2422V32.7081C31.1899 32.5124 36.2145 27.9847 36.2145 21.404Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
-
-// Mistral logo component
-function LogoMistral({ size = 16 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="currentColor" />
-      <path d="M2 17L12 22L22 17" fill="currentColor" />
-      <path d="M2 12L12 17L22 12" fill="currentColor" fillOpacity="0.5" />
-    </svg>
-  );
-}
-
-// Default logo component
-function LogoDefault({ size = 16 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 16.5C9.51 16.5 7.5 14.49 7.5 12C7.5 9.51 9.51 7.5 12 7.5C14.49 7.5 16.5 9.51 16.5 12C16.5 14.49 14.49 16.5 12 16.5Z"
-        fill="currentColor"
-        fillOpacity="0.7"
-      />
-      <path
-        d="M12 9.5C10.62 9.5 9.5 10.62 9.5 12C9.5 13.38 10.62 14.5 12 14.5C13.38 14.5 14.5 13.38 14.5 12C14.5 10.62 13.38 9.5 12 9.5Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
-
-// Define the OpenRouter model type
+// Update the model type based on the new API structure
 interface OpenRouterModel {
-  id: string;
+  slug: string; // Use slug as the primary identifier
   name: string;
+  short_name: string;
   description: string;
-  created: number;
+  created_at: string; // ISO date string
   context_length: number;
-  pricing: {
-    prompt: string;
-    completion: string;
+  endpoint?: {
+    // Endpoint can be optional or null
+    provider_info: {
+      name: string;
+      displayName: string;
+      icon?: {
+        url?: string; // Icon URL might be optional
+      };
+    };
+    provider_display_name: string;
+    provider_name: string;
+    pricing: {
+      prompt: string;
+      completion: string;
+    };
+    supports_tool_parameters: boolean;
+    context_length: number; // Context length might also be here
   };
+}
+
+// Generic Fallback Icon Component
+function FallbackIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      xmlns="http://www.w3.org/2000/svg"
+      className="opacity-50"
+    >
+      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z" />
+    </svg>
+  );
 }
 
 // Original component function
 function PureModelSelector({
-  selectedModelId,
+  selectedModelId, // Keep this prop name, but it refers to the slug now
   className,
 }: {
   selectedModelId: string;
@@ -136,8 +85,8 @@ function PureModelSelector({
   const [open, setOpen] = useState(false);
   const [optimisticModelId, setOptimisticModelId] =
     useOptimistic(selectedModelId);
-  const [models, setModels] = useState<OpenRouterModel[]>([]);
-  const [isLoadingModels, setIsLoadingModels] = useState(true);
+  const [models, setModels] = useState<OpenRouterModel[]>([]); // Start empty
+  const [isLoadingModels, setIsLoadingModels] = useState(true); // Start loading
   const [searchQuery, setSearchQuery] = useState('');
   const [hoveredModel, setHoveredModel] = useState<OpenRouterModel | null>(
     null,
@@ -148,15 +97,30 @@ function PureModelSelector({
 
   useEffect(() => {
     async function fetchModels() {
+      setIsLoadingModels(true); // Ensure loading state is set
       try {
-        const response = await fetch('https://openrouter.ai/api/v1/models');
+        // Use the new endpoint
+        // const response = await fetch(
+        //   'https://openrouter.ai/api/frontend/models',
+        // );
+        // Fetch from our internal proxy API route
+        const response = await fetch('/api/models');
+
         if (!response.ok) {
-          throw new Error('Failed to fetch models');
+          const errorData = await response.json().catch(() => ({})); // Try to parse error body
+          throw new Error(
+            `Failed to fetch models via proxy: ${response.statusText} ${errorData.error || ''}`,
+          );
         }
         const data = await response.json();
-        setModels(data.data);
+        // Filter out models without an endpoint as they can't be used for chat
+        const validModels = data.data.filter(
+          (m: OpenRouterModel) => m.endpoint,
+        );
+        setModels(validModels);
       } catch (error) {
         console.error('Error fetching models:', error);
+        setModels([]); // Clear models on error
       } finally {
         setIsLoadingModels(false);
       }
@@ -165,11 +129,13 @@ function PureModelSelector({
     fetchModels();
   }, []);
 
+  // Find the selected model using the slug
   const selectedModel = useMemo(
-    () => models.find((model) => model.id === optimisticModelId) || models[0],
+    () => models.find((model) => model.slug === optimisticModelId),
     [optimisticModelId, models],
   );
 
+  // Filter models based on the new structure
   const filteredModels = useMemo(() => {
     if (!searchQuery.trim()) return models;
 
@@ -177,63 +143,71 @@ function PureModelSelector({
     return models.filter(
       (model) =>
         model.name.toLowerCase().includes(query) ||
+        model.short_name.toLowerCase().includes(query) ||
         model.description.toLowerCase().includes(query) ||
-        model.id.toLowerCase().includes(query),
+        model.slug.toLowerCase().includes(query) ||
+        model.endpoint?.provider_info.displayName.toLowerCase().includes(query),
     );
   }, [models, searchQuery]);
 
-  // Function to determine which provider icon to show
-  const getProviderIcon = (modelId: string) => {
-    if (modelId.includes('openai') || modelId.includes('gpt')) {
-      return <LogoOpenAI size={18} />;
-    } else if (modelId.includes('anthropic') || modelId.includes('claude')) {
-      return <LogoAnthropic />;
-    } else if (
-      modelId.includes('google') ||
-      modelId.includes('gemini') ||
-      modelId.includes('palm')
-    ) {
-      return <LogoGoogle size={18} />;
-    } else if (modelId.includes('meta') || modelId.includes('llama')) {
-      return <LogoMeta size={18} />;
-    } else if (modelId.includes('mistral')) {
-      return <LogoMistral size={18} />;
+  // Get provider icon URL or render fallback
+  const renderProviderIcon = (model?: OpenRouterModel) => {
+    const iconUrl = model?.endpoint?.provider_info.icon?.url;
+    if (iconUrl) {
+      const absoluteIconUrl = iconUrl.startsWith('/')
+        ? `https://openrouter.ai${iconUrl}` // Prepend base URL for relative paths
+        : iconUrl;
+      return (
+        <Image
+          key={model?.slug || 'icon'} // Add key for React
+          src={absoluteIconUrl}
+          alt={`${getProviderName(model) || 'Provider'} logo`}
+          width={18}
+          height={18}
+          className="rounded-sm object-contain" // Added object-contain
+          unoptimized // Use if icons are SVGs or external and optimization causes issues
+          onError={(e) => {
+            // Hide broken image and show fallback (requires fallback logic)
+            e.currentTarget.style.display = 'none';
+            // You might need a sibling element with the fallback to show it here
+          }}
+        />
+      );
     }
-    // Default icon for other providers
-    return <LogoDefault size={18} />;
+    return <FallbackIcon size={18} />;
   };
 
-  // Function to determine if model is new (created in the last 30 days)
-  const isNewModel = (createdTimestamp: number) => {
-    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
-    return createdTimestamp > thirtyDaysAgo / 1000;
-  };
-
-  // Clean model name to remove provider prefix
-  const getCleanModelName = (name: string) => {
-    return name.split(':').pop()?.trim() || name;
-  };
-
-  // Get provider name from model ID
-  const getProviderName = (modelId: string) => {
-    if (modelId.includes('openai')) return 'OpenAI';
-    if (modelId.includes('anthropic')) return 'Anthropic';
-    if (modelId.includes('google')) return 'Google';
-    if (modelId.includes('meta') || modelId.includes('llama')) return 'Meta';
-    if (modelId.includes('mistral')) return 'Mistral';
-
-    // Extract provider from ID format like 'provider/model-name'
-    const parts = modelId.split('/');
-    if (parts.length > 1) {
-      return parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+  // Function to determine if model is new
+  const isNewModel = (createdAtString?: string) => {
+    if (!createdAtString) return false;
+    try {
+      const createdAt = new Date(createdAtString);
+      // Check if date is valid before proceeding using Number.isNaN
+      if (Number.isNaN(createdAt.getTime())) return false;
+      const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      return createdAt.getTime() > thirtyDaysAgo;
+    } catch (e) {
+      return false; // Catch potential errors during date parsing
     }
-
-    return '';
   };
 
-  const handleMouseEnter = (model: OpenRouterModel, id: string) => {
+  // Get clean model name (use short_name preferably)
+  const getCleanModelName = (model?: OpenRouterModel) => {
+    return model?.short_name || model?.name || 'Unknown Model';
+  };
+
+  // Get provider name
+  const getProviderName = (model?: OpenRouterModel) => {
+    return (
+      model?.endpoint?.provider_info.displayName ||
+      model?.endpoint?.provider_name ||
+      ''
+    );
+  };
+
+  const handleMouseEnter = (model: OpenRouterModel, slug: string) => {
     setHoveredModel(model);
-    const element = itemRefs.current.get(id);
+    const element = itemRefs.current.get(slug);
     if (element) {
       setHoveredItemRect(element.getBoundingClientRect());
     }
@@ -255,86 +229,111 @@ function PureModelSelector({
               'md:px-2 md:h-[34px] justify-between gap-2',
               className,
             )}
+            disabled={isLoadingModels || models.length === 0} // Disable if loading or no models
           >
             {isLoadingModels ? (
-              'Loading models...'
-            ) : (
+              'Loading...'
+            ) : selectedModel ? (
               <>
-                {selectedModel && getProviderIcon(selectedModel.id)}
-                <span className="truncate">
-                  {selectedModel
-                    ? getCleanModelName(selectedModel.name)
-                    : 'Select model'}
+                <span className="flex h-5 w-5 items-center justify-center flex-shrink-0">
+                  {renderProviderIcon(selectedModel)}
+                </span>
+                <span className="truncate text-xs">
+                  {getCleanModelName(selectedModel)}
                 </span>
               </>
+            ) : models.length > 0 ? (
+              'Select model' // Only show if models are loaded
+            ) : (
+              'No models' // Indicate if loading finished but no models found
             )}
             <ChevronDownIcon size={16} />
           </Button>
         </PopoverTrigger>
         <PopoverContent
-          className="w-[300px] p-0 overflow-hidden"
+          className="w-[300px] p-0 overflow-hidden shadow-xl" // Added shadow
           align="start"
           ref={dropdownRef}
         >
           <Command className="border-0">
-            <div className="flex items-center border-b px-3">
-              <CommandInput
-                placeholder="Search Models..."
-                value={searchQuery}
-                onValueChange={setSearchQuery}
-                className="h-9 border-0 focus:ring-0"
-              />
-            </div>
-            <CommandEmpty>No models found</CommandEmpty>
-            <CommandGroup className="max-h-[300px] overflow-auto border-0">
+            <CommandInput
+              placeholder="Search Models..."
+              value={searchQuery}
+              onValueChange={setSearchQuery}
+              className="h-9 border-0 focus:ring-0 text-xs"
+            />
+            <CommandEmpty>No models found.</CommandEmpty>
+            <CommandGroup className="max-h-[300px] overflow-y-auto overflow-x-hidden border-0">
               {isLoadingModels ? (
-                <CommandItem disabled>Loading models...</CommandItem>
+                <CommandItem
+                  disabled
+                  className="text-xs text-muted-foreground justify-center py-4"
+                >
+                  Loading models...
+                </CommandItem>
+              ) : filteredModels.length === 0 && !isLoadingModels ? (
+                <CommandItem
+                  disabled
+                  className="text-xs text-muted-foreground justify-center py-4"
+                >
+                  No models match your search.
+                </CommandItem>
               ) : (
                 filteredModels.map((model) => {
-                  const { id } = model;
-                  const isNew = isNewModel(model.created);
+                  const { slug } = model;
+                  if (!slug || !model.endpoint) return null; // Skip if slug or endpoint missing
+
+                  const isNew = isNewModel(model.created_at);
+                  const isPro = Number(model.endpoint.pricing?.prompt) > 0;
 
                   return (
                     <CommandItem
-                      key={id}
-                      value={id}
+                      key={slug}
+                      value={slug}
                       ref={(el) => {
-                        if (el) itemRefs.current.set(id, el);
+                        if (el) itemRefs.current.set(slug, el);
                       }}
                       onSelect={() => {
                         setOpen(false);
                         startTransition(() => {
-                          setOptimisticModelId(id);
-                          saveChatModelAsCookie(id);
+                          setOptimisticModelId(slug);
+                          saveChatModelAsCookie(slug);
                         });
                       }}
-                      onMouseEnter={() => handleMouseEnter(model, id)}
+                      onMouseEnter={() => handleMouseEnter(model, slug)}
                       onMouseLeave={handleMouseLeave}
-                      className="flex items-center py-2 px-2"
+                      className="flex items-center justify-between py-2 px-2 cursor-pointer text-xs hover:bg-accent"
                     >
-                      <div className="mr-2 flex h-5 w-5 items-center justify-center">
-                        {getProviderIcon(id)}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center">
-                          <span className="font-medium text-xs">
-                            {getCleanModelName(model.name)}
+                      <div className="flex items-center gap-2 overflow-hidden flex-1">
+                        <span className="flex h-5 w-5 items-center justify-center flex-shrink-0">
+                          {renderProviderIcon(model)}
+                        </span>
+                        <div className="flex-1 overflow-hidden">
+                          <span className="font-medium truncate block">
+                            {getCleanModelName(model)}
                           </span>
-                          {isNew && (
-                            <span className="ml-2 rounded-sm bg-green-500/10 px-1.5 py-0.5 text-xs text-green-500">
-                              New
-                            </span>
-                          )}
-                          {Number(model.pricing.prompt) > 0.00001 && (
-                            <span className="ml-2 rounded-sm bg-blue-500/10 px-1.5 py-0.5 text-xs text-blue-600">
-                              Pro
-                            </span>
-                          )}
+                          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                            {isNew && (
+                              <span className="rounded-sm bg-green-500/10 px-1 py-0.5 leading-none text-green-600 dark:text-green-400">
+                                New
+                              </span>
+                            )}
+                            {isPro && (
+                              <span className="rounded-sm bg-blue-500/10 px-1 py-0.5 leading-none text-blue-600 dark:text-blue-400">
+                                Pro
+                              </span>
+                            )}
+                            {/* Indicate Tool Support subtly */}
+                            {model.endpoint.supports_tool_parameters && (
+                              <CodeIcon size={10} />
+                            )}
+                          </div>
                         </div>
                       </div>
-                      {id === optimisticModelId && (
-                        <span className="ml-2 text-primary">
-                          <CheckCircleFillIcon size={16} />
+
+                      {slug === optimisticModelId && (
+                        <span className="ml-2 text-primary flex-shrink-0">
+                          <CheckCircleFillIcon size={14} />
                         </span>
                       )}
                     </CommandItem>
@@ -347,69 +346,106 @@ function PureModelSelector({
       </Popover>
 
       {/* Model details card that appears on hover */}
-      {hoveredModel && open && hoveredItemRect && dropdownRef.current && (
-        <div
-          className="fixed w-[350px] bg-background border rounded-md shadow-md p-4 z-50"
-          style={{
-            left: `${dropdownRef.current.getBoundingClientRect().right + 10}px`,
-            top: `${dropdownRef.current.getBoundingClientRect().top}px`,
-          }}
-        >
-          <div className="flex items-center gap-2 mb-2">
-            {getProviderIcon(hoveredModel.id)}
-            <div className="text-xs font-medium whitespace-nowrap overflow-hidden text-ellipsis">
-              {getProviderName(hoveredModel.id)} /{' '}
-              <span className="text-foreground">
-                {getCleanModelName(hoveredModel.name)}
+      {hoveredModel?.endpoint &&
+        open &&
+        hoveredItemRect &&
+        dropdownRef.current && (
+          <div
+            className="fixed w-[350px] bg-background border rounded-md shadow-lg p-4 z-50 animate-in fade-in duration-100 text-xs"
+            style={{
+              // Position relative to the dropdown
+              left: `${dropdownRef.current.getBoundingClientRect().right + 8}px`,
+              // Align top with the dropdown content, not the hovered item
+              top: `${dropdownRef.current.getBoundingClientRect().top}px`,
+              maxHeight: `calc(100vh - ${dropdownRef.current.getBoundingClientRect().top}px - 20px)`,
+              overflowY: 'auto',
+            }}
+            // Prevent hover card from triggering parent leave event
+            onMouseEnter={() =>
+              handleMouseEnter(hoveredModel, hoveredModel.slug)
+            }
+            onMouseLeave={handleMouseLeave}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <span className="flex h-5 w-5 items-center justify-center flex-shrink-0">
+                {renderProviderIcon(hoveredModel)}
               </span>
+              <div className="font-medium whitespace-nowrap overflow-hidden text-ellipsis">
+                {getProviderName(hoveredModel)} /{' '}
+                <span className="text-foreground font-semibold">
+                  {getCleanModelName(hoveredModel)}
+                </span>
+              </div>
             </div>
+
+            {/* Render description as Markdown */}
+            <div className="prose prose-sm dark:prose-invert text-muted-foreground mb-3 leading-relaxed max-h-32 overflow-y-auto text-xs">
+              <ReactMarkdown className="line-clamp-6">
+                {hoveredModel.description || 'No description available.'}
+              </ReactMarkdown>
+            </div>
+
+            <table className="w-full text-xs border-t">
+              <tbody>
+                <tr>
+                  <td className="py-1.5 text-muted-foreground">Context</td>
+                  <td className="py-1.5 text-right font-medium">
+                    {(
+                      hoveredModel.endpoint?.context_length ||
+                      hoveredModel.context_length
+                    )?.toLocaleString()}{' '}
+                    tokens
+                  </td>
+                </tr>
+
+                {/* Tool Support Row */}
+                <tr className="border-t">
+                  <td className="py-1.5 text-muted-foreground flex items-center gap-1">
+                    <CodeIcon size={12} /> Tools
+                  </td>
+                  <td
+                    className={`py-1.5 text-right font-medium ${hoveredModel.endpoint.supports_tool_parameters ? 'text-green-600' : 'text-red-600'}`}
+                  >
+                    {hoveredModel.endpoint.supports_tool_parameters
+                      ? 'Supported'
+                      : 'Not Supported'}
+                  </td>
+                </tr>
+
+                <tr className="border-t">
+                  <td className="py-1.5 text-muted-foreground">Input</td>
+                  <td className="py-1.5 text-right font-medium">
+                    $
+                    {(
+                      Number.parseFloat(hoveredModel.endpoint.pricing.prompt) *
+                      1_000_000
+                    ).toFixed(2)}{' '}
+                    <span className="text-muted-foreground">/ 1M</span>
+                  </td>
+                </tr>
+
+                <tr className="border-t">
+                  <td className="py-1.5 text-muted-foreground">Output</td>
+                  <td className="py-1.5 text-right font-medium">
+                    $
+                    {(
+                      Number.parseFloat(
+                        hoveredModel.endpoint.pricing.completion,
+                      ) * 1_000_000
+                    ).toFixed(2)}{' '}
+                    <span className="text-muted-foreground">/ 1M</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-
-          <p className="text-xs text-muted-foreground mb-4 leading-relaxed overflow-hidden line-clamp-4">
-            {hoveredModel.description}
-          </p>
-
-          <table className="w-full text-xs">
-            <tbody>
-              <tr className="border-t">
-                <td className="py-2 text-muted-foreground">Context</td>
-                <td className="py-2 text-right">
-                  {hoveredModel.context_length.toLocaleString()} tokens
-                </td>
-              </tr>
-
-              <tr className="border-t">
-                <td className="py-2 text-muted-foreground">Input Pricing</td>
-                <td className="py-2 text-right">
-                  $
-                  {(
-                    Number.parseFloat(hoveredModel.pricing.prompt) * 1000000
-                  ).toFixed(2)}{' '}
-                  / million tokens
-                </td>
-              </tr>
-
-              <tr className="border-t">
-                <td className="py-2 text-muted-foreground">Output Pricing</td>
-                <td className="py-2 text-right">
-                  $
-                  {(
-                    Number.parseFloat(hoveredModel.pricing.completion) * 1000000
-                  ).toFixed(2)}{' '}
-                  / million tokens
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      )}
+        )}
     </div>
   );
 }
 
-// Memoized component
+// Memoized component (keep existing comparison logic)
 export const ModelSelector = memo(PureModelSelector, (prevProps, nextProps) => {
-  // Only re-render if selectedModelId or className changes
   return (
     prevProps.selectedModelId === nextProps.selectedModelId &&
     prevProps.className === nextProps.className

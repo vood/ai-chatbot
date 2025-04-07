@@ -39,10 +39,12 @@ export async function POST(request: Request) {
       id,
       messages,
       selectedChatModel,
+      supportsTools,
     }: {
       id: string;
       messages: Array<UIMessage>;
       selectedChatModel: string;
+      supportsTools: boolean;
     } = await request.json();
 
     const authResult = await auth();
@@ -137,6 +139,9 @@ export async function POST(request: Request) {
           'sendDocumentForSigning',
         ];
 
+        const activeTools = supportsTools ? tools : undefined;
+        const activeToolNames = supportsTools ? selectedTools : undefined;
+
         const result = streamText({
           model: selectedChatModel.startsWith('chat-')
             ? myProvider.languageModel(selectedChatModel as any)
@@ -144,10 +149,10 @@ export async function POST(request: Request) {
           system: systemPrompt({ selectedChatModel }),
           messages: convertToCoreMessages(messages),
           maxSteps: 5,
-          experimental_activeTools: selectedTools,
+          experimental_activeTools: activeToolNames,
           experimental_transform: smoothStream({ chunking: 'word' }),
           experimental_generateMessageId: generateUUID,
-          tools: tools,
+          tools: activeTools,
           onFinish: async ({ response }) => {
             if (user.id) {
               try {

@@ -9,8 +9,7 @@ alwaysApply: true
 
 *   Framework: Next.JS 15
 *   Runtime: Node.js 22
-*   UI Library: React, shadcn/ui
-*   Backend Supabase   
+*   UI Library: React
 
 ## UI Components & Styling
 
@@ -18,11 +17,6 @@ alwaysApply: true
     *   Utilize standard Shadcn components whenever possible.
 *   Icons: Lucide Icons
 *   Notifications: Sonner for toasts, don't use custom hook
-
-## UI with shadcn/ui
-* Use standard components of shadcn/ui as much as possible
-* Use sonner for toasts / notifications
-* All componets are in components/ui, if something is missing install with `npx shadcn@latest add <component>`
 
 ## Backend & Database (Supabase)
 
@@ -47,7 +41,6 @@ alwaysApply: true
 
 ## Server Actions
 
-*   Server Actions vs REST API: prefer rest api in /app/api/* directory over actions. 
 *   Server Actions: Core server actions should be defined in the `/actions` directory
 *   API Context: Keep server actions focused on specific database or external API operations
 *   Authentication: All server actions must include proper authentication checks

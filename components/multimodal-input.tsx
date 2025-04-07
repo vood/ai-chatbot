@@ -56,6 +56,7 @@ function PureMultimodalInput({
   append,
   handleSubmit,
   className,
+  supportsTools,
 }: {
   selectedChatModel: string;
   chatId: string;
@@ -70,6 +71,7 @@ function PureMultimodalInput({
   append: UseChatHelpers['append'];
   handleSubmit: UseChatHelpers['handleSubmit'];
   className?: string;
+  supportsTools: boolean;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { width } = useWindowSize();
@@ -344,14 +346,14 @@ function PureMultimodalInput({
             isActive={webSearchEnabled}
             onClick={() => setWebSearchEnabled(!webSearchEnabled)}
             tooltip="Toggle web search"
-            disabled={status !== 'ready'}
+            disabled={status !== 'ready' || !supportsTools}
           />
           <FeatureToggleButton
             icon={<ImageIcon size={14} />}
             isActive={imageGenEnabled}
             onClick={() => setImageGenEnabled(!imageGenEnabled)}
             tooltip="Toggle image generation"
-            disabled={status !== 'ready'}
+            disabled={status !== 'ready' || !supportsTools}
           />
         </div>
 
@@ -395,7 +397,8 @@ export const MultimodalInput = memo(
       prevProps.input !== nextProps.input ||
       prevProps.selectedChatModel !== nextProps.selectedChatModel ||
       prevProps.status !== nextProps.status ||
-      prevProps.className !== nextProps.className // Added className check
+      prevProps.className !== nextProps.className ||
+      prevProps.supportsTools !== nextProps.supportsTools
     ) {
       return false; // Props are different, re-render
     }

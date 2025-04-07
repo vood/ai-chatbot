@@ -21,12 +21,14 @@ export function Chat({
   selectedChatModel,
   selectedVisibilityType,
   isReadonly,
+  supportsTools,
 }: {
   id: string;
   initialMessages: Array<UIMessage>;
   selectedChatModel: string;
   selectedVisibilityType: VisibilityType;
   isReadonly: boolean;
+  supportsTools: boolean;
 }) {
   const { mutate } = useSWRConfig();
 
@@ -42,7 +44,11 @@ export function Chat({
     reload,
   } = useChat({
     id,
-    body: { id, selectedChatModel: selectedChatModel },
+    body: {
+      id,
+      selectedChatModel: selectedChatModel,
+      supportsTools: supportsTools,
+    },
     initialMessages,
     experimental_throttle: 100,
     sendExtraMessageFields: true,
@@ -103,6 +109,7 @@ export function Chat({
               messages={messages as UIMessage[]}
               setMessages={setMessages}
               append={append}
+              supportsTools={supportsTools}
             />
           )}
         </form>
