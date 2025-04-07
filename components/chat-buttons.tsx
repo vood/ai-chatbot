@@ -10,11 +10,13 @@ import type React from 'react';
 interface AttachmentsButtonProps {
   fileInputRef: React.MutableRefObject<HTMLInputElement | null>;
   status: UseChatHelpers['status'];
+  disabled?: boolean;
 }
 
 function PureAttachmentsButton({
   fileInputRef,
   status,
+  disabled,
 }: AttachmentsButtonProps) {
   return (
     <Button
@@ -24,7 +26,7 @@ function PureAttachmentsButton({
         event.preventDefault();
         fileInputRef.current?.click();
       }}
-      disabled={status !== 'ready'}
+      disabled={status !== 'ready' || disabled}
       variant="ghost"
     >
       <PaperclipIcon size={14} />
@@ -64,9 +66,15 @@ interface SendButtonProps {
   submitForm: () => void;
   input: string;
   uploadQueue: Array<string>;
+  isUploading?: boolean;
 }
 
-function PureSendButton({ submitForm, input, uploadQueue }: SendButtonProps) {
+function PureSendButton({
+  submitForm,
+  input,
+  uploadQueue,
+  isUploading,
+}: SendButtonProps) {
   return (
     <Button
       data-testid="send-button"
@@ -75,7 +83,7 @@ function PureSendButton({ submitForm, input, uploadQueue }: SendButtonProps) {
         event.preventDefault();
         submitForm();
       }}
-      disabled={input.length === 0 || uploadQueue.length > 0}
+      disabled={input.length === 0 || uploadQueue.length > 0 || isUploading}
     >
       <ArrowUpIcon size={14} />
     </Button>
@@ -83,6 +91,7 @@ function PureSendButton({ submitForm, input, uploadQueue }: SendButtonProps) {
 }
 
 export const SendButton = memo(PureSendButton, (prevProps, nextProps) => {
+  if (prevProps.isUploading !== nextProps.isUploading) return false;
   if (prevProps.uploadQueue.length !== nextProps.uploadQueue.length)
     return false;
   if (prevProps.input !== nextProps.input) return false;

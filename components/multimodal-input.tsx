@@ -32,7 +32,7 @@ import { Textarea } from './ui/textarea';
 import { SuggestedActions } from './suggested-actions';
 import equal from 'fast-deep-equal';
 
-// Import our new components
+// Import our new components & hooks
 import { CommandPrompt } from './command-prompt';
 import { PromptVariablesDialog } from './prompt-variables-dialog';
 import {
@@ -41,6 +41,7 @@ import {
   StopButton,
   FeatureToggleButton,
 } from './chat-buttons';
+import { useSupabaseStorageUpload } from '@/hooks/use-supabase-storage-upload'; // Import the new hook
 
 function PureMultimodalInput({
   chatId,
@@ -49,8 +50,8 @@ function PureMultimodalInput({
   setInput,
   status,
   stop,
-  attachments,
-  setAttachments,
+  attachments, // Keep attachments state here, managed by the parent hook (useChat)
+  setAttachments, // Keep setAttachments setter here
   messages,
   setMessages,
   append,
@@ -84,6 +85,20 @@ function PureMultimodalInput({
   // Web search and image generation toggles
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [imageGenEnabled, setImageGenEnabled] = useState(false);
+
+  // Use the custom upload hook
+  const { uploadQueue, isUploading, handleFileChange } =
+    useSupabaseStorageUpload({
+      onUploadSuccess: (uploadedAttachments) => {
+        // Update the attachments state managed by useChat
+        setAttachments((currentAttachments) => [
+          ...currentAttachments,
+          ...uploadedAttachments,
+        ]);
+      },
+      // Optional: Add onUploadError handling if needed
+      // onUploadError: (error, fileName) => { ... }
+    });
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -132,7 +147,8 @@ function PureMultimodalInput({
       // Command+K (macOS) or Ctrl+K (Windows/Linux)
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault(); // Prevent any default browser behavior
-        if (status === 'ready') {
+        if (status === 'ready' && !isUploading) {
+          // Also check if not uploading
           setShowCommandDialog(true);
         }
       }
@@ -140,7 +156,7 @@ function PureMultimodalInput({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [status]);
+  }, [status, isUploading]); // Add isUploading dependency
 
   const handleInput = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = event.target.value;
@@ -148,7 +164,10 @@ function PureMultimodalInput({
     // Check if the user has just typed "/" at the start or in an empty field
     if (value === '/' && (!input || input.trim() === '')) {
       event.preventDefault(); // Prevent any default behavior
-      setShowCommandDialog(true);
+      if (!isUploading) {
+        // Only open if not uploading
+        setShowCommandDialog(true);
+      }
       return;
     }
 
@@ -157,8 +176,8 @@ function PureMultimodalInput({
   };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploadQueue, setUploadQueue] = useState<Array<string>>([]);
 
+  // submitForm remains the same, using the `attachments` state populated by the hook
   const submitForm = useCallback(() => {
     window.history.replaceState({}, '', `/chat/${chatId}`);
 
@@ -181,59 +200,6 @@ function PureMultimodalInput({
     width,
     chatId,
   ]);
-
-  const uploadFile = async (file: File) => {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      const response = await fetch('/api/files/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const { url, pathname, contentType } = data;
-
-        return {
-          url,
-          name: pathname,
-          contentType: contentType,
-        };
-      }
-      const { error } = await response.json();
-      toast.error(error);
-    } catch (error) {
-      toast.error('Failed to upload file, please try again!');
-    }
-  };
-
-  const handleFileChange = useCallback(
-    async (event: ChangeEvent<HTMLInputElement>) => {
-      const files = Array.from(event.target.files || []);
-
-      setUploadQueue(files.map((file) => file.name));
-
-      try {
-        const uploadPromises = files.map((file) => uploadFile(file));
-        const uploadedAttachments = await Promise.all(uploadPromises);
-        const successfullyUploadedAttachments = uploadedAttachments.filter(
-          (attachment) => attachment !== undefined,
-        );
-
-        setAttachments((currentAttachments) => [
-          ...currentAttachments,
-          ...successfullyUploadedAttachments,
-        ]);
-      } catch (error) {
-        console.error('Error uploading files!', error);
-      } finally {
-        setUploadQueue([]);
-      }
-    },
-    [setAttachments],
-  );
 
   // Handle prompt selection and variable replacement
   const handlePromptSelect = (promptContent: string) => {
@@ -278,8 +244,9 @@ function PureMultimodalInput({
         className="fixed -top-4 -left-4 size-0.5 opacity-0 pointer-events-none"
         ref={fileInputRef}
         multiple
-        onChange={handleFileChange}
+        onChange={handleFileChange} // Use handleFileChange from the hook
         tabIndex={-1}
+        disabled={isUploading} // Disable input while uploading
       />
 
       {(attachments.length > 0 || uploadQueue.length > 0) && (
@@ -287,10 +254,12 @@ function PureMultimodalInput({
           data-testid="attachments-preview"
           className="flex flex-row gap-2 overflow-x-scroll items-end"
         >
+          {/* Display successfully uploaded attachments */}
           {attachments.map((attachment) => (
             <PreviewAttachment key={attachment.url} attachment={attachment} />
           ))}
 
+          {/* Display files currently in the upload queue */}
           {uploadQueue.map((filename) => (
             <PreviewAttachment
               key={filename}
@@ -327,6 +296,8 @@ function PureMultimodalInput({
 
             if (status !== 'ready') {
               toast.error('Please wait for the model to finish its response!');
+            } else if (isUploading) {
+              toast.error('Please wait for uploads to complete!');
             } else {
               submitForm();
             }
@@ -336,7 +307,11 @@ function PureMultimodalInput({
 
       <div className="absolute bottom-0 p-2 w-full flex flex-row items-center justify-between">
         <div className="flex items-center gap-2">
-          <AttachmentsButton fileInputRef={fileInputRef} status={status} />
+          <AttachmentsButton
+            fileInputRef={fileInputRef}
+            status={status}
+            disabled={isUploading} // Disable button during upload
+          />
           <ModelSelector
             selectedModelId={selectedChatModel}
             className="min-w-[100px] text-xs border border-zinc-200 dark:border-zinc-700"
@@ -346,14 +321,14 @@ function PureMultimodalInput({
             isActive={webSearchEnabled}
             onClick={() => setWebSearchEnabled(!webSearchEnabled)}
             tooltip="Toggle web search"
-            disabled={status !== 'ready' || !supportsTools}
+            disabled={status !== 'ready' || !supportsTools || isUploading}
           />
           <FeatureToggleButton
             icon={<ImageIcon size={14} />}
             isActive={imageGenEnabled}
             onClick={() => setImageGenEnabled(!imageGenEnabled)}
             tooltip="Toggle image generation"
-            disabled={status !== 'ready' || !supportsTools}
+            disabled={status !== 'ready' || !supportsTools || isUploading}
           />
         </div>
 
@@ -364,7 +339,8 @@ function PureMultimodalInput({
             <SendButton
               input={input}
               submitForm={submitForm}
-              uploadQueue={uploadQueue}
+              uploadQueue={uploadQueue} // Keep for visual disabling logic if needed
+              isUploading={isUploading} // Use hook's uploading state
             />
           )}
         </div>
