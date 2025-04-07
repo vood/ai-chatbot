@@ -75,9 +75,6 @@ export function AppSidebar({ user }: { user: User | undefined }) {
       <SidebarContent>
         {user && (
           <SidebarGroup>
-            <div className="px-2 py-1 text-xs text-sidebar-foreground/50 flex items-center">
-              Quick Links
-            </div>
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>

@@ -5,6 +5,7 @@ import { Check, Image as DefaultImageIcon } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Toggle } from '@/components/ui/toggle';
 import {
   Command,
   CommandGroup,
@@ -63,21 +64,16 @@ function PureImageModelSelector({
         <Tooltip>
           <TooltipTrigger asChild>
             <PopoverTrigger asChild>
-              <Button
+              <Toggle
+                pressed={!!selectedModel}
                 variant="outline"
-                role="combobox"
-                size="icon"
+                size="sm"
+                className="size-8"
                 aria-expanded={open}
-                className={cn(
-                  'h-8 w-8 shrink-0',
-                  !selectedModel && 'text-muted-foreground',
-                  className,
-                )}
-                disabled={disabled}
               >
                 <TriggerIcon className="h-4 w-4" />
                 <span className="sr-only">Select Image Generation Tool</span>
-              </Button>
+              </Toggle>
             </PopoverTrigger>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="text-xs">

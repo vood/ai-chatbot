@@ -384,18 +384,24 @@ function PureMultimodalInput({
             className="min-w-[100px] text-xs border border-zinc-200 dark:border-zinc-700"
             onSelectModel={onModelChange}
           />
-          <ImageModelSelector
-            selectedToolName={selectedImageToolName}
-            onSelectTool={handleImageToolChange}
-            disabled={status !== 'ready' || isUploading}
-          />
-          <FeatureToggleButton
-            icon={<GlobeIcon size={14} />}
-            isActive={selectedTools.has('webSearch')}
-            onClick={() => handleToggleTool('webSearch')}
-            tooltip="Toggle web search"
-            disabled={status !== 'ready' || !supportsTools || isUploading}
-          />
+
+          {/* Only show tool buttons when tools are supported */}
+          {supportsTools && (
+            <>
+              <ImageModelSelector
+                selectedToolName={selectedImageToolName}
+                onSelectTool={handleImageToolChange}
+                disabled={status !== 'ready' || isUploading}
+              />
+              <FeatureToggleButton
+                icon={<GlobeIcon size={14} />}
+                isActive={selectedTools.has('webSearch')}
+                onClick={() => handleToggleTool('webSearch')}
+                tooltip="Toggle web search"
+                disabled={status !== 'ready' || isUploading}
+              />
+            </>
+          )}
         </div>
 
         <div>

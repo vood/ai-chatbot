@@ -53,7 +53,34 @@ export function Chat({
   const [currentModelId, setCurrentModelId] = useState(
     initialSelectedChatModel,
   );
-  const [supportsToolsClient, setSupportsToolsClient] = useState(false); // Keep this state
+  const [supportsToolsClient, setSupportsToolsClient] = useState(false);
+
+  // Fetch all models once to check support for the current model
+  useEffect(() => {
+    // If the model selector already has models from the API, leverage that data
+    const checkToolSupport = async () => {
+      try {
+        // Fetch all models once to find the initial selected model
+        const response = await fetch('/api/models');
+        if (!response.ok) return;
+
+        const data = await response.json();
+        const modelData = data.data.find(
+          (m: OpenRouterModel) => m.slug === initialSelectedChatModel,
+        );
+
+        if (modelData) {
+          setSupportsToolsClient(
+            modelData.endpoint?.supports_tool_parameters ?? false,
+          );
+        }
+      } catch (error) {
+        console.error('Error checking model tool support:', error);
+      }
+    };
+
+    checkToolSupport();
+  }, [initialSelectedChatModel]);
 
   // Add state for the selected tools using a Set
   const [selectedTools, setSelectedTools] = useState<ReadonlySet<string>>(

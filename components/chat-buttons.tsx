@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { memo } from 'react';
 import { PaperclipIcon, ArrowUpIcon, StopIcon } from '@/components/icons';
 import type React from 'react';
+import { Toggle } from '@/components/ui/toggle';
 
 // Attachment Button
 interface AttachmentsButtonProps {
@@ -115,22 +116,17 @@ function PureFeatureToggleButton({
   disabled,
 }: FeatureToggleButtonProps) {
   return (
-    <Button
-      className={`rounded-md p-2 h-8 transition-colors border ${
-        isActive
-          ? 'bg-primary/10 text-primary border-primary/20'
-          : 'bg-transparent border-zinc-200 dark:border-zinc-700'
-      }`}
-      onClick={(event) => {
-        event.preventDefault();
-        onClick();
-      }}
+    <Toggle
+      pressed={isActive}
+      onPressedChange={() => onClick()}
       disabled={disabled}
-      variant="ghost"
       title={tooltip}
+      variant="outline"
+      size="sm"
+      className="transition-all size-8"
     >
       {icon}
-    </Button>
+    </Toggle>
   );
 }
 
