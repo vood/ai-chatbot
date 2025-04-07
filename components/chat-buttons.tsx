@@ -32,7 +32,8 @@ function PureAttachmentsButton({
   );
 }
 
-export const AttachmentsButton = memo(PureAttachmentsButton);
+// Export the component directly without memo
+export const AttachmentsButton = PureAttachmentsButton;
 
 // Stop Button
 interface StopButtonProps {

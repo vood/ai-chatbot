@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  memo,
   startTransition,
   useEffect,
   useMemo,
@@ -125,7 +126,8 @@ interface OpenRouterModel {
   };
 }
 
-export function ModelSelector({
+// Original component function
+function PureModelSelector({
   selectedModelId,
   className,
 }: {
@@ -404,3 +406,12 @@ export function ModelSelector({
     </div>
   );
 }
+
+// Memoized component
+export const ModelSelector = memo(PureModelSelector, (prevProps, nextProps) => {
+  // Only re-render if selectedModelId or className changes
+  return (
+    prevProps.selectedModelId === nextProps.selectedModelId &&
+    prevProps.className === nextProps.className
+  );
+});

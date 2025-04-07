@@ -192,7 +192,7 @@ export default function SigningForm({
           <h3 className="text-lg font-semibold">Document Content</h3>
           <ScrollArea className="h-96 w-full rounded-md border p-4 bg-background text-sm">
             <div className="whitespace-pre-wrap">
-              {renderContentWithHighlights(document.content, fields)}
+              {renderContentWithHighlights(document.content || '', fields)}
             </div>
           </ScrollArea>
         </div>

@@ -14,10 +14,12 @@ export type ArtifactActionContext<M = any> = {
   setMetadata: Dispatch<SetStateAction<M>>;
 };
 
-type ArtifactAction<M = any> = {
+export type ArtifactAction<M = any> = {
+  id?: string;
   icon: ReactNode;
   label?: string;
   description: string;
+  condition?: (metadata: M) => boolean;
   onClick?: (context: ArtifactActionContext<M>) => Promise<void> | void;
   render?: (
     context: ArtifactActionContext<M>,
@@ -50,7 +52,7 @@ interface ArtifactContent<M = any> {
   isLoading: boolean;
   metadata: M;
   setMetadata: Dispatch<SetStateAction<M>>;
-  annotations?: DocumentAnnotation[];
+  annotations?: DocumentAnnotation<unknown>[];
 }
 
 interface InitializeParameters<M = any> {

@@ -11,15 +11,15 @@ import SigningForm from '@/components/signing-form';
 import { ExclamationTriangleIcon } from '@radix-ui/react-icons';
 
 interface SignDocumentPageProps {
-  params: {
+  params: Promise<{
     token: string;
-  };
+  }>;
 }
 
 export default async function SignDocumentPage({
   params,
 }: SignDocumentPageProps) {
-  const { token } = params;
+  const { token } = await params;
 
   if (!token) {
     return (

@@ -389,12 +389,41 @@ function PureMultimodalInput({
 export const MultimodalInput = memo(
   PureMultimodalInput,
   (prevProps, nextProps) => {
-    if (prevProps.selectedChatModel !== nextProps.selectedChatModel)
-      return false;
-    if (prevProps.input !== nextProps.input) return false;
-    if (prevProps.status !== nextProps.status) return false;
-    if (!equal(prevProps.attachments, nextProps.attachments)) return false;
+    // Check primitive props first (cheap)
+    if (
+      prevProps.chatId !== nextProps.chatId ||
+      prevProps.input !== nextProps.input ||
+      prevProps.selectedChatModel !== nextProps.selectedChatModel ||
+      prevProps.status !== nextProps.status ||
+      prevProps.className !== nextProps.className // Added className check
+    ) {
+      return false; // Props are different, re-render
+    }
 
+    // Check potentially expensive deep comparisons
+    if (!equal(prevProps.attachments, nextProps.attachments)) {
+      return false; // Props are different, re-render
+    }
+    // Check messages - this could be expensive if messages are large/frequent
+    if (!equal(prevProps.messages, nextProps.messages)) {
+      // Added messages check
+      return false; // Props are different, re-render
+    }
+
+    // Check function references (assuming parent memoizes them)
+    if (
+      prevProps.setInput !== nextProps.setInput ||
+      prevProps.stop !== nextProps.stop ||
+      prevProps.setAttachments !== nextProps.setAttachments ||
+      prevProps.setMessages !== nextProps.setMessages ||
+      prevProps.append !== nextProps.append ||
+      prevProps.handleSubmit !== nextProps.handleSubmit
+    ) {
+      // Added function checks
+      return false; // Props are different, re-render
+    }
+
+    // If all checks pass, props are considered equal
     return true;
   },
 );

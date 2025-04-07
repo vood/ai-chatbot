@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { SendHorizonal } from 'lucide-react';
 import React from 'react';
+import equal from 'fast-deep-equal';
 
 interface ArtifactActionsProps {
   artifact: UIArtifact;
@@ -49,59 +50,65 @@ function PureArtifactActions({
 
   return (
     <div className="flex flex-row gap-1">
-      {artifactDefinition.actions.map((action) => {
-        const key = action.description;
-        const disabled =
-          isLoading || artifact.status === 'streaming'
-            ? true
-            : action.isDisabled
-              ? action.isDisabled(actionContext)
-              : false;
+      {/* Filter actions based on condition before mapping */}
+      {artifactDefinition.actions
+        .filter((action) =>
+          action.condition ? action.condition(metadata) : true,
+        )
+        .map((action) => {
+          // Use action.id or action.description as key
+          const key = action.id ?? action.description;
+          const disabled =
+            isLoading || artifact.status === 'streaming'
+              ? true
+              : action.isDisabled
+                ? action.isDisabled(actionContext)
+                : false;
 
-        if (action.render) {
-          // If a render function exists, call it with context and props
-          return (
-            <React.Fragment key={key}>
-              {action.render(actionContext, { isLoading, disabled })}
-            </React.Fragment>
-          );
-        } else if (action.onClick) {
-          // Otherwise, render the standard button with onClick
-          return (
-            <Tooltip key={key}>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn('h-fit dark:hover:bg-zinc-700', {
-                    'p-2': !action.label,
-                    'py-1.5 px-2': action.label,
-                  })}
-                  onClick={async () => {
-                    setIsLoading(true);
+          if (action.render) {
+            // If a render function exists, call it with context and props
+            return (
+              <React.Fragment key={key}>
+                {action.render(actionContext, { isLoading, disabled })}
+              </React.Fragment>
+            );
+          } else if (action.onClick) {
+            // Otherwise, render the standard button with onClick
+            return (
+              <Tooltip key={key}>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn('h-fit dark:hover:bg-zinc-700', {
+                      'p-2': !action.label,
+                      'py-1.5 px-2': action.label,
+                    })}
+                    onClick={async () => {
+                      setIsLoading(true);
 
-                    try {
-                      if (action.onClick) {
-                        await Promise.resolve(action.onClick(actionContext));
+                      try {
+                        if (action.onClick) {
+                          await Promise.resolve(action.onClick(actionContext));
+                        }
+                      } catch (error) {
+                        toast.error('Failed to execute action');
+                      } finally {
+                        setIsLoading(false);
                       }
-                    } catch (error) {
-                      toast.error('Failed to execute action');
-                    } finally {
-                      setIsLoading(false);
-                    }
-                  }}
-                  disabled={disabled}
-                >
-                  {action.icon}
-                  {action.label}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{action.description}</TooltipContent>
-            </Tooltip>
-          );
-        }
+                    }}
+                    disabled={disabled}
+                  >
+                    {action.icon}
+                    {action.label}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{action.description}</TooltipContent>
+              </Tooltip>
+            );
+          }
 
-        return null; // Skip actions with neither render nor onClick
-      })}
+          return null; // Skip actions with neither render nor onClick
+        })}
     </div>
   );
 }
@@ -114,6 +121,7 @@ export const ArtifactActions = memo(
       return false;
     if (prevProps.isCurrentVersion !== nextProps.isCurrentVersion) return false;
     if (prevProps.artifact.content !== nextProps.artifact.content) return false;
+    if (!equal(prevProps.metadata, nextProps.metadata)) return false;
 
     return true;
   },

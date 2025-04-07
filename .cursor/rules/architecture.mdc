@@ -9,7 +9,8 @@ alwaysApply: true
 
 *   Framework: Next.JS 15
 *   Runtime: Node.js 22
-*   UI Library: React
+*   UI Library: React, shadcn/ui
+*   Backend Supabase   
 
 ## UI Components & Styling
 
@@ -17,6 +18,11 @@ alwaysApply: true
     *   Utilize standard Shadcn components whenever possible.
 *   Icons: Lucide Icons
 *   Notifications: Sonner for toasts, don't use custom hook
+
+## UI with shadcn/ui
+* Use standard components of shadcn/ui as much as possible
+* Use sonner for toasts / notifications
+* All componets are in components/ui, if something is missing install with `npx shadcn@latest add <component>`
 
 ## Backend & Database (Supabase)
 
@@ -31,3 +37,34 @@ alwaysApply: true
 
 *   Hooks: Encapsulate complex component logic within custom React Hooks.
 *   Server-Side Logic: Keep database interactions and sensitive logic strictly on the server.
+
+## AI Features & Integration
+
+*   AI Provider Management: All AI provider configurations should be managed in `lib/ai/providers.ts`
+*   AI Models: Model definitions and configurations should be maintained in `lib/ai/models.ts`
+*   AI Tools: Custom AI tools and functions should be organized in `lib/ai/tools/` directory
+*   Prompts: Reusable prompts and templates should be defined in `lib/ai/prompts.ts`
+
+## Server Actions
+
+*   Server Actions vs REST API: prefer rest api in /app/api/* directory over actions. 
+*   Server Actions: Core server actions should be defined in the `/actions` directory
+*   API Context: Keep server actions focused on specific database or external API operations
+*   Authentication: All server actions must include proper authentication checks
+
+## Project Features
+
+*   Document Signing: All document signing related components and logic should be organized in the `/app/sign/` directory
+*   Artifact Management: Components for handling artifacts should follow patterns in `components/artifact.tsx`
+*   Chat Interface: Chat-related components should be consistent with existing patterns in `components/chat.tsx` and related files
+
+## Testing & Code Quality
+
+*   Testing: Tests should be organized in the `/tests` directory
+*   Linting: Follow the Biome linting rules defined in `biome.jsonc`
+*   Type Safety: Maintain strict TypeScript typing across the codebase
+
+## Deployment & Environment
+
+*   Environment Variables: All environment variables should be documented in `.env.example`
+*   Supabase Integration: Follow the migration patterns defined in `supabase-migrations.mdc`

@@ -121,7 +121,7 @@ export function PromptVariablesDialog({
             <DialogTitle>Using Prompt</DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            <p>This prompt doesn't have any variables to fill in.</p>
+            <p>This prompt doesn&apos;t have any variables to fill in.</p>
             <p className="text-sm text-muted-foreground mt-2">
               Applying prompt to your message...
             </p>
