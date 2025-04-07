@@ -2,7 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { SparklesIcon, TrashIcon, PlusIcon } from '@/components/icons';
+import {
+  SparklesIcon,
+  TrashIcon,
+  PlusIcon,
+  LockIcon,
+  GlobeIcon,
+  UserIcon,
+  ChevronDownIcon,
+  CheckCircleFillIcon,
+} from '@/components/icons';
 import { Button } from '@/components/button';
 import {
   Dialog,
@@ -43,6 +52,19 @@ import {
 } from '@/components/ui/form';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAgents } from '@/hooks/use-agents';
+import { PageHeader } from '@/components/ui/page-header';
+import { ModelSelector } from '@/components/model-selector';
+import type { OpenRouterModel } from '@/components/model-selector';
+import { Slider } from '@/components/ui/slider';
+import { VisibilitySelector } from '@/components/visibility-selector';
+import type { VisibilityType } from '@/components/visibility-selector';
+import { ReactNode } from 'react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 // Define Zod schema for Agent form validation
 const agentSchema = z.object({
@@ -77,12 +99,42 @@ type Agent = Tables<'assistants'>;
 // Remove sample prompts
 // const samplePrompts = [...];
 
+// Define sharing options for agents
+const sharingOptions: Array<{
+  id: string;
+  label: string;
+  description: string;
+  icon: ReactNode;
+}> = [
+  {
+    id: 'private',
+    label: 'Private',
+    description: 'Only you can access this agent',
+    icon: <LockIcon size={16} />,
+  },
+  {
+    id: 'public',
+    label: 'Public',
+    description: 'Anyone with the link can access this agent',
+    icon: <GlobeIcon size={16} />,
+  },
+  {
+    id: 'organization',
+    label: 'Organization',
+    description: 'Anyone in your organization can access this agent',
+    icon: <UserIcon />,
+  },
+];
+
 export default function AgentsPage() {
   const { agents, loading, refetchAgents } = useAgents();
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+  const [selectedModel, setSelectedModel] = useState<OpenRouterModel | null>(
+    null,
+  );
 
   // Initialize react-hook-form
   const form = useForm<AgentFormData>({
@@ -156,6 +208,11 @@ export default function AgentsPage() {
       embeddings_provider: agent.embeddings_provider,
       sharing: agent.sharing,
     });
+
+    // Set the selected model ID for the ModelSelector
+    // The ModelSelector will handle fetching the model details
+    setSelectedModel(null); // Reset the model object, it will be populated when selected
+
     setShowEditDialog(true);
   };
 
@@ -211,36 +268,29 @@ export default function AgentsPage() {
     }
   };
 
+  // Handle model selection
+  const handleModelSelect = (model: OpenRouterModel) => {
+    setSelectedModel(model);
+    form.setValue('model', model.slug);
+  };
+
   // No longer need manual resetForm, use form.reset()
 
   return (
-    <div className="flex flex-col h-screen">
-      <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
-        <div className="flex items-center justify-between w-full">
-          <h1 className="font-semibold text-lg flex items-center gap-2">
-            <SidebarToggle />
-            <SparklesIcon size={20} />
-            Agents
-          </h1>
-          <Button
-            size="sm"
-            onClick={() => {
-              setSelectedAgentId(null); // Ensure we are in "add" mode
-              form.reset(); // Reset form to default values
-              setShowAddDialog(true);
-            }}
-          >
-            <PlusIcon size={14} />
-            <span>New Agent</span>
-          </Button>
-        </div>
-      </header>
-      <main className="flex-1 overflow-auto p-4 sm:px-6 sm:py-0">
+    <div className="flex flex-col flex-1 overflow-hidden">
+      <PageHeader
+        title="Agents"
+        description="Create and manage your AI agents."
+        actions={[
+          {
+            label: 'Add Agent',
+            onClick: () => setShowAddDialog(true),
+            icon: <PlusIcon size={16} />,
+          },
+        ]}
+      />
+      <main className="flex-1 overflow-auto p-4 sm:px-6">
         <div className="max-w-5xl mx-auto">
-          <div className="text-sm text-muted-foreground mb-6">
-            Create agents with template variables like {'{variable}'} and use
-            them quickly by typing / in the chat.
-          </div>
           {loading ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {Array.from({ length: 5 }).map((_, index) => (
@@ -315,6 +365,7 @@ export default function AgentsPage() {
                 setShowEditDialog(false);
                 form.reset(); // Reset form on close
                 setSelectedAgentId(null);
+                setSelectedModel(null); // Reset selected model
               }
             }}
           >
@@ -397,10 +448,10 @@ export default function AgentsPage() {
                           Model
                         </FormLabel>
                         <FormControl className="col-span-3">
-                          {/* TODO: Replace with Select component */}
-                          <Input
-                            placeholder="E.g., gpt-4, claude-3-opus..."
-                            {...field}
+                          <ModelSelector
+                            selectedModelId={field.value}
+                            onSelectModel={handleModelSelect}
+                            className="w-full"
                           />
                         </FormControl>
                         <FormMessage className="col-start-2 col-span-3" />
@@ -416,14 +467,19 @@ export default function AgentsPage() {
                           Temperature
                         </FormLabel>
                         <FormControl className="col-span-3">
-                          {/* TODO: Consider Slider component */}
-                          <Input
-                            type="number"
-                            step="0.1"
-                            min="0"
-                            max="2"
-                            {...field}
-                          />
+                          <div className="flex items-center gap-4">
+                            <Slider
+                              min={0}
+                              max={2}
+                              step={0.1}
+                              value={[field.value]}
+                              onValueChange={(vals) => field.onChange(vals[0])}
+                              className="flex-1"
+                            />
+                            <span className="text-sm text-muted-foreground w-12 text-right">
+                              {field.value}
+                            </span>
+                          </div>
                         </FormControl>
                         <FormMessage className="col-start-2 col-span-3" />
                       </FormItem>
@@ -438,11 +494,19 @@ export default function AgentsPage() {
                           Context Length
                         </FormLabel>
                         <FormControl className="col-span-3">
-                          <Input
-                            type="number"
-                            placeholder="E.g., 4096, 8192..."
-                            {...field}
-                          />
+                          <div className="flex items-center gap-4">
+                            <Slider
+                              min={1000}
+                              max={32000}
+                              step={1000}
+                              value={[field.value]}
+                              onValueChange={(vals) => field.onChange(vals[0])}
+                              className="flex-1"
+                            />
+                            <span className="text-sm text-muted-foreground w-16 text-right">
+                              {field.value.toLocaleString()}
+                            </span>
+                          </div>
                         </FormControl>
                         <FormMessage className="col-start-2 col-span-3" />
                       </FormItem>
@@ -523,11 +587,49 @@ export default function AgentsPage() {
                           Sharing
                         </FormLabel>
                         <FormControl className="col-span-3">
-                          {/* TODO: Replace with Select: private, public, organization */}
-                          <Input
-                            placeholder="private, public, organization"
-                            {...field}
-                          />
+                          <div className="flex items-center gap-2">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  className="w-full justify-between"
+                                >
+                                  {sharingOptions.find(
+                                    (option) => option.id === field.value,
+                                  )?.label || 'Select visibility'}
+                                  <ChevronDownIcon size={16} />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent
+                                align="start"
+                                className="w-[300px]"
+                              >
+                                {sharingOptions.map((option) => (
+                                  <DropdownMenuItem
+                                    key={option.id}
+                                    onSelect={() => field.onChange(option.id)}
+                                    className="gap-4 group/item flex flex-row justify-between items-center"
+                                    data-active={option.id === field.value}
+                                  >
+                                    <div className="flex flex-col gap-1 items-start">
+                                      <div className="flex items-center gap-2">
+                                        {option.icon}
+                                        {option.label}
+                                      </div>
+                                      {option.description && (
+                                        <div className="text-xs text-muted-foreground">
+                                          {option.description}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="text-foreground dark:text-foreground opacity-0 group-data-[active=true]/item:opacity-100">
+                                      <CheckCircleFillIcon size={16} />
+                                    </div>
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </FormControl>
                         <FormMessage className="col-start-2 col-span-3" />
                       </FormItem>

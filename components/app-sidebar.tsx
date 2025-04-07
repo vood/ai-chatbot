@@ -3,8 +3,9 @@
 import type { User } from 'next-auth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import React from 'react';
 
-import { PlusIcon, SparklesIcon } from '@/components/icons';
+import { PlusIcon, SparklesIcon, BotIcon } from '@/components/icons';
 import { SidebarHistory } from '@/components/sidebar-history';
 import { SidebarUserNav } from '@/components/sidebar-user-nav';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,15 @@ import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 export function AppSidebar({ user }: { user: User | undefined }) {
   const router = useRouter();
   const { setOpenMobile } = useSidebar();
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return null;
+  }
 
   return (
     <Sidebar className="group-data-[side=left]:border-r-0 dark:group-data-[side=left]:border-r">
@@ -76,6 +86,16 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                       <div className="flex items-center gap-2">
                         <SparklesIcon size={16} />
                         <span>Prompts</span>
+                      </div>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link href="/agents" onClick={() => setOpenMobile(false)}>
+                      <div className="flex items-center gap-2">
+                        <BotIcon size={16} />
+                        <span>Agents</span>
                       </div>
                     </Link>
                   </SidebarMenuButton>

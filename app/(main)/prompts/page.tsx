@@ -28,6 +28,8 @@ import {
 import { WandSparklesIcon } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SidebarToggle } from '@/components/sidebar-toggle';
+import { Plus } from 'lucide-react';
+import { PageHeader } from '@/components/ui/page-header';
 
 // Define sample prompts
 const samplePrompts = [
@@ -324,274 +326,273 @@ export default function PromptsPage() {
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-auto">
-      <div className="flex justify-between items-center h-12 px-2 border-b bg-background w-full shrink-0">
-        <h1 className="text-lg font-semibold flex items-center gap-2">
-          <SidebarToggle />
-          <SparklesIcon size={20} />
-          Prompts
-        </h1>
-        <Button
-          onClick={() => setShowAddDialog(true)}
-          className="gap-2"
-          size="xs"
-        >
-          <PlusIcon size={14} />
-          <span>New Prompt</span>
-        </Button>
-      </div>
+    <div className="flex flex-col flex-1 overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-auto">
+        <PageHeader
+          icon={<SparklesIcon size={20} />}
+          title="Prompts"
+          description="Create and manage your AI prompts."
+          actions={[
+            {
+              label: 'Add Prompt',
+              onClick: () => setShowAddDialog(true),
+              icon: <PlusIcon size={14} />,
+            },
+          ]}
+        />
 
-      <div className="flex-1 overflow-auto p-6 md:p-8">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-sm text-muted-foreground mb-6">
-            Create prompts with template variables like {'{variable}'} and use
-            them quickly by typing / in the chat.
-          </div>
+        <div className="flex-1 overflow-auto p-6 md:p-8">
+          <div className="max-w-5xl mx-auto">
+            <div className="text-sm text-muted-foreground mb-6">
+              Create prompts with template variables like {'{variable}'} and use
+              them quickly by typing / in the chat.
+            </div>
 
-          {loading ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-              {Array.from({ length: 10 }).map((_, index) => (
-                <div
-                  // biome-ignore lint:
-                  key={index}
-                  className="flex flex-col items-center text-center p-4 rounded-lg border border-border bg-card"
-                >
-                  <Skeleton className="mb-2 p-2 rounded-full h-[36px] w-[36px]" />
-                  <Skeleton className="h-5 w-3/4 mb-2" />
-                  <Skeleton className="h-4 w-full mb-1" />
-                  <Skeleton className="h-4 w-5/6 mb-3" />
-                </div>
-              ))}
-            </div>
-          ) : prompts.length > 0 ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-              {prompts.map((prompt) => (
-                <div
-                  key={prompt.id}
-                  onClick={() => handleEditPrompt(prompt)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      handleEditPrompt(prompt);
-                    }
-                  }}
-                  className="flex flex-col items-center text-center p-4 rounded-lg border border-border bg-card hover:shadow-md transition-shadow cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                >
-                  <div className="mb-2 p-2 rounded-full bg-primary/10 text-primary">
-                    <SparklesIcon size={20} />
-                  </div>
-                  <h3 className="font-semibold mb-1">{prompt.name}</h3>
-                  <p className="text-sm text-muted-foreground line-clamp-3 mb-3">
-                    {prompt.content}
-                  </p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="mb-4 text-muted-foreground">
-                <SparklesIcon size={48} />
-              </div>
-              <h3 className="font-medium mb-2">No prompts yet</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Create your first prompt to quickly reuse in chats.
-              </p>
-              <Button onClick={() => setShowAddDialog(true)}>
-                Create a Prompt
-              </Button>
-            </div>
-          )}
-
-          {/* Sample Prompts Gallery - Added Section */}
-          <div className="mt-12 pt-6 border-t">
-            {' '}
-            {/* Added spacing and top border */}
-            <h2 className="text-xl font-semibold mb-6">Prompts Gallery</h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-              {samplePrompts.map((prompt) => (
-                <div
-                  key={prompt.id}
-                  className="flex flex-col items-center text-center p-4 rounded-lg border border-border bg-card/80 hover:shadow-md transition-shadow" // Slightly different bg
-                >
-                  <div className="mb-2 p-2 rounded-full bg-secondary/20 text-secondary-foreground">
-                    {' '}
-                    {/* Different icon style */}
-                    <SparklesIcon size={20} />
-                  </div>
-                  <h3 className="font-semibold mb-1">{prompt.name}</h3>
-                  <p className="text-sm text-muted-foreground line-clamp-3 mb-3 flex-grow">
-                    {' '}
-                    {/* Added flex-grow */}
-                    {prompt.content}
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      handleUseSamplePrompt(prompt.name, prompt.content)
-                    }
-                    className="mt-auto w-full"
+            {loading ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                {Array.from({ length: 10 }).map((_, index) => (
+                  <div
+                    // biome-ignore lint:
+                    key={index}
+                    className="flex flex-col items-center text-center p-4 rounded-lg border border-border bg-card"
                   >
-                    <PlusIcon size={14} /> Use
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <Dialog
-            open={showAddDialog}
-            onOpenChange={(open) => {
-              setShowAddDialog(open);
-              if (!open) resetForm();
-            }}
-          >
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create New Prompt</DialogTitle>
-                <DialogDescription>
-                  Add a new prompt template. Use {'{variable}'} for template
-                  variables.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="name">Prompt Name</Label>
-                  <Input
-                    id="name"
-                    value={promptName}
-                    onChange={(e) => setPromptName(e.target.value)}
-                    placeholder="Enter a name for your prompt"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="content">Content</Label>
-                  <div className="relative">
-                    <Textarea
-                      id="content"
-                      value={promptContent}
-                      onChange={(e) => setPromptContent(e.target.value)}
-                      placeholder="Enter your prompt content"
-                      rows={5}
-                      className="pr-20"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleImprovePrompt}
-                      disabled={improvingPrompt}
-                      className="absolute bottom-2 right-2 h-7 gap-1"
-                    >
-                      {improvingPrompt ? (
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
-                      ) : (
-                        <WandSparklesIcon />
-                      )}
-                      Improve
-                    </Button>
+                    <Skeleton className="mb-2 p-2 rounded-full h-[36px] w-[36px]" />
+                    <Skeleton className="h-5 w-3/4 mb-2" />
+                    <Skeleton className="h-4 w-full mb-1" />
+                    <Skeleton className="h-4 w-5/6 mb-3" />
                   </div>
-                </div>
+                ))}
               </div>
-              <DialogFooter>
-                <Button onClick={handleAddPrompt}>Create</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          <Dialog
-            open={showEditDialog}
-            onOpenChange={(open) => {
-              setShowEditDialog(open);
-              if (!open) resetForm();
-            }}
-          >
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Edit Prompt</DialogTitle>
-                <DialogDescription>
-                  Update your prompt template. Use {'{variable}'} for template
-                  variables.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-name">Prompt Name</Label>
-                  <Input
-                    id="edit-name"
-                    value={promptName}
-                    onChange={(e) => setPromptName(e.target.value)}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-content">Content</Label>
-                  <div className="relative">
-                    <Textarea
-                      id="edit-content"
-                      value={promptContent}
-                      onChange={(e) => setPromptContent(e.target.value)}
-                      rows={5}
-                      className="pr-20"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleImprovePrompt}
-                      disabled={improvingPrompt}
-                      className="absolute bottom-2 right-2 h-7 gap-1"
-                    >
-                      {improvingPrompt ? (
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
-                      ) : (
-                        <WandSparklesIcon />
-                      )}
-                      Improve
-                    </Button>
+            ) : prompts.length > 0 ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                {prompts.map((prompt) => (
+                  <div
+                    key={prompt.id}
+                    onClick={() => handleEditPrompt(prompt)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        handleEditPrompt(prompt);
+                      }
+                    }}
+                    className="flex flex-col items-center text-center p-4 rounded-lg border border-border bg-card hover:shadow-md transition-shadow cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  >
+                    <div className="mb-2 p-2 rounded-full bg-primary/10 text-primary">
+                      <SparklesIcon size={20} />
+                    </div>
+                    <h3 className="font-semibold mb-1">{prompt.name}</h3>
+                    <p className="text-sm text-muted-foreground line-clamp-3 mb-3">
+                      {prompt.content}
+                    </p>
                   </div>
-                </div>
+                ))}
               </div>
-              <DialogFooter>
-                <Button
-                  variant="destructive"
-                  onClick={() => {
-                    if (selectedPromptId) {
-                      setShowEditDialog(false);
-                      confirmDeletePrompt(selectedPromptId);
-                    }
-                  }}
-                  className="ml-auto"
-                >
-                  <TrashIcon size={14} /> Delete
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="mb-4 text-muted-foreground">
+                  <SparklesIcon size={48} />
+                </div>
+                <h3 className="font-medium mb-2">No prompts yet</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Create your first prompt to quickly reuse in chats.
+                </p>
+                <Button onClick={() => setShowAddDialog(true)}>
+                  Create a Prompt
                 </Button>
-                <Button onClick={saveEditedPrompt}>Save</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              </div>
+            )}
 
-          <AlertDialog
-            open={showDeleteDialog}
-            onOpenChange={setShowDeleteDialog}
-          >
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete the
-                  selected prompt.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setShowDeleteDialog(false)}>
-                  Cancel
-                </AlertDialogCancel>
-                <AlertDialogAction onClick={handleDeletePrompt}>
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+            {/* Sample Prompts Gallery - Added Section */}
+            <div className="mt-12 pt-6 border-t">
+              {' '}
+              {/* Added spacing and top border */}
+              <h2 className="text-xl font-semibold mb-6">Prompts Gallery</h2>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                {samplePrompts.map((prompt) => (
+                  <div
+                    key={prompt.id}
+                    className="flex flex-col items-center text-center p-4 rounded-lg border border-border bg-card/80 hover:shadow-md transition-shadow" // Slightly different bg
+                  >
+                    <div className="mb-2 p-2 rounded-full bg-secondary/20 text-secondary-foreground">
+                      {' '}
+                      {/* Different icon style */}
+                      <SparklesIcon size={20} />
+                    </div>
+                    <h3 className="font-semibold mb-1">{prompt.name}</h3>
+                    <p className="text-sm text-muted-foreground line-clamp-3 mb-3 flex-grow">
+                      {' '}
+                      {/* Added flex-grow */}
+                      {prompt.content}
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        handleUseSamplePrompt(prompt.name, prompt.content)
+                      }
+                      className="mt-auto w-full"
+                    >
+                      <PlusIcon size={14} /> Use
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <Dialog
+              open={showAddDialog}
+              onOpenChange={(open) => {
+                setShowAddDialog(open);
+                if (!open) resetForm();
+              }}
+            >
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create New Prompt</DialogTitle>
+                  <DialogDescription>
+                    Add a new prompt template. Use {'{variable}'} for template
+                    variables.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="name">Prompt Name</Label>
+                    <Input
+                      id="name"
+                      value={promptName}
+                      onChange={(e) => setPromptName(e.target.value)}
+                      placeholder="Enter a name for your prompt"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="content">Content</Label>
+                    <div className="relative">
+                      <Textarea
+                        id="content"
+                        value={promptContent}
+                        onChange={(e) => setPromptContent(e.target.value)}
+                        placeholder="Enter your prompt content"
+                        rows={5}
+                        className="pr-20"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleImprovePrompt}
+                        disabled={improvingPrompt}
+                        className="absolute bottom-2 right-2 h-7 gap-1"
+                      >
+                        {improvingPrompt ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                        ) : (
+                          <WandSparklesIcon />
+                        )}
+                        Improve
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button onClick={handleAddPrompt}>Create</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog
+              open={showEditDialog}
+              onOpenChange={(open) => {
+                setShowEditDialog(open);
+                if (!open) resetForm();
+              }}
+            >
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Edit Prompt</DialogTitle>
+                  <DialogDescription>
+                    Update your prompt template. Use {'{variable}'} for template
+                    variables.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-name">Prompt Name</Label>
+                    <Input
+                      id="edit-name"
+                      value={promptName}
+                      onChange={(e) => setPromptName(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-content">Content</Label>
+                    <div className="relative">
+                      <Textarea
+                        id="edit-content"
+                        value={promptContent}
+                        onChange={(e) => setPromptContent(e.target.value)}
+                        rows={5}
+                        className="pr-20"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleImprovePrompt}
+                        disabled={improvingPrompt}
+                        className="absolute bottom-2 right-2 h-7 gap-1"
+                      >
+                        {improvingPrompt ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                        ) : (
+                          <WandSparklesIcon />
+                        )}
+                        Improve
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    variant="destructive"
+                    onClick={() => {
+                      if (selectedPromptId) {
+                        setShowEditDialog(false);
+                        confirmDeletePrompt(selectedPromptId);
+                      }
+                    }}
+                    className="ml-auto"
+                  >
+                    <TrashIcon size={14} /> Delete
+                  </Button>
+                  <Button onClick={saveEditedPrompt}>Save</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <AlertDialog
+              open={showDeleteDialog}
+              onOpenChange={setShowDeleteDialog}
+            >
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete
+                    the selected prompt.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel onClick={() => setShowDeleteDialog(false)}>
+                    Cancel
+                  </AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDeletePrompt}>
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
       </div>
     </div>
