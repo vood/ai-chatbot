@@ -1,0 +1,8 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+For any significant business logic prefer using /app/api/* routes
+use zod schema for input validation
+all sql interactions must be in lib/db/queries/<model-name>.ts

@@ -13,6 +13,7 @@ import {
   type SetStateAction,
   type ChangeEvent,
   memo,
+  useMemo,
 } from 'react';
 import { toast } from 'sonner';
 import { useLocalStorage, useWindowSize } from 'usehooks-ts';
@@ -26,21 +27,19 @@ import {
   SparklesIcon,
 } from './icons';
 import { ModelSelector } from './model-selector';
+import { ImageModelSelector } from './image-model-selector';
 import { PreviewAttachment } from './preview-attachment';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { SuggestedActions } from './suggested-actions';
 import equal from 'fast-deep-equal';
+import { FeatureToggleButton } from './chat-buttons';
+import { SUPPORTED_IMAGE_MODELS } from '@/lib/ai/models';
 
 // Import our new components & hooks
 import { CommandPrompt } from './command-prompt';
 import { PromptVariablesDialog } from './prompt-variables-dialog';
-import {
-  AttachmentsButton,
-  SendButton,
-  StopButton,
-  FeatureToggleButton,
-} from './chat-buttons';
+import { AttachmentsButton, SendButton, StopButton } from './chat-buttons';
 import { useSupabaseStorageUpload } from '@/hooks/use-supabase-storage-upload';
 
 // Define the type locally (or move to a shared types file)
@@ -52,24 +51,8 @@ interface OpenRouterModel {
   // Add other fields if needed from ModelSelector's definition
 }
 
-function PureMultimodalInput({
-  chatId,
-  input,
-  selectedChatModel,
-  setInput,
-  status,
-  stop,
-  attachments, // Keep attachments state here, managed by the parent hook (useChat)
-  setAttachments, // Keep setAttachments setter here
-  messages,
-  setMessages,
-  append,
-  handleSubmit,
-  className,
-  supportsTools,
-  onModelChange,
-}: {
-  selectedChatModel: string;
+// Update Props Interface
+interface PureMultimodalInputProps {
   chatId: string;
   input: UseChatHelpers['input'];
   setInput: UseChatHelpers['setInput'];
@@ -83,8 +66,32 @@ function PureMultimodalInput({
   handleSubmit: UseChatHelpers['handleSubmit'];
   className?: string;
   supportsTools: boolean;
+  selectedChatModel: string;
   onModelChange: (model: OpenRouterModel) => void;
-}) {
+  // Unified props for ALL tools
+  selectedTools: ReadonlySet<string>; // <-- Single Set for all selected tools
+  onSelectedToolsChange: (newSelectedTools: Set<string>) => void; // <-- Single handler
+}
+
+function PureMultimodalInput({
+  chatId,
+  input,
+  setInput,
+  status,
+  stop,
+  attachments,
+  setAttachments,
+  messages,
+  setMessages,
+  append,
+  handleSubmit,
+  className,
+  supportsTools,
+  selectedChatModel,
+  onModelChange,
+  selectedTools,
+  onSelectedToolsChange,
+}: PureMultimodalInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { width } = useWindowSize();
 
@@ -92,10 +99,6 @@ function PureMultimodalInput({
   const [showCommandDialog, setShowCommandDialog] = useState(false);
   const [showVariablesDialog, setShowVariablesDialog] = useState(false);
   const [selectedPromptContent, setSelectedPromptContent] = useState('');
-
-  // Web search and image generation toggles
-  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
-  const [imageGenEnabled, setImageGenEnabled] = useState(false);
 
   // Use the custom upload hook
   const { uploadQueue, isUploading, handleFileChange } =
@@ -188,15 +191,63 @@ function PureMultimodalInput({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // submitForm remains the same, using the `attachments` state populated by the hook
+  // Derive the current image tool name from the set for the selector
+  const selectedImageToolName = useMemo(() => {
+    const imageToolNames = new Set(
+      SUPPORTED_IMAGE_MODELS.map((m) => m.toolName),
+    );
+    for (const toolName of selectedTools) {
+      if (imageToolNames.has(toolName)) {
+        return toolName;
+      }
+    }
+    return ''; // Return empty or default if none found
+  }, [selectedTools]);
+
+  // Handler for Image Selector change
+  const handleImageToolChange = useCallback(
+    (newImageToolName: string) => {
+      const newSelectedTools = new Set(selectedTools);
+      const imageToolNames = new Set(
+        SUPPORTED_IMAGE_MODELS.map((m) => m.toolName),
+      );
+      imageToolNames.forEach((name) => {
+        if (newSelectedTools.has(name)) {
+          newSelectedTools.delete(name);
+        }
+      });
+      if (newImageToolName) {
+        newSelectedTools.add(newImageToolName);
+      }
+      onSelectedToolsChange(newSelectedTools);
+    },
+    [selectedTools, onSelectedToolsChange],
+  );
+
+  // Handler for Toggle Button change
+  const handleToggleTool = useCallback(
+    (toolNameToToggle: string) => {
+      const newSelectedTools = new Set(selectedTools);
+      if (newSelectedTools.has(toolNameToToggle)) {
+        newSelectedTools.delete(toolNameToToggle);
+      } else {
+        newSelectedTools.add(toolNameToToggle);
+      }
+      onSelectedToolsChange(newSelectedTools);
+    },
+    [selectedTools, onSelectedToolsChange],
+  );
+
+  // Update submitForm to use selectedTools set
   const submitForm = useCallback(() => {
     window.history.replaceState({}, '', `/chat/${chatId}`);
 
     handleSubmit(undefined, {
       experimental_attachments: attachments,
       data: {
-        webSearchEnabled: JSON.stringify(webSearchEnabled),
-        imageGenEnabled: JSON.stringify(imageGenEnabled),
+        // Construct data payload based on the selectedTools set
+        webSearchEnabled: JSON.stringify(selectedTools.has('webSearch')),
+        // Add other tool states if needed by the backend API route
       },
     });
 
@@ -214,8 +265,7 @@ function PureMultimodalInput({
     setLocalStorageInput,
     width,
     chatId,
-    webSearchEnabled,
-    imageGenEnabled,
+    selectedTools,
   ]);
 
   // Handle prompt selection and variable replacement
@@ -323,7 +373,7 @@ function PureMultimodalInput({
       />
 
       <div className="absolute bottom-0 p-2 w-full flex flex-row items-center justify-between">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <AttachmentsButton
             fileInputRef={fileInputRef}
             status={status}
@@ -334,18 +384,16 @@ function PureMultimodalInput({
             className="min-w-[100px] text-xs border border-zinc-200 dark:border-zinc-700"
             onSelectModel={onModelChange}
           />
-          <FeatureToggleButton
-            icon={<GlobeIcon size={14} />}
-            isActive={webSearchEnabled}
-            onClick={() => setWebSearchEnabled(!webSearchEnabled)}
-            tooltip="Toggle web search"
-            disabled={status !== 'ready' || !supportsTools || isUploading}
+          <ImageModelSelector
+            selectedToolName={selectedImageToolName}
+            onSelectTool={handleImageToolChange}
+            disabled={status !== 'ready' || isUploading}
           />
           <FeatureToggleButton
-            icon={<ImageIcon size={14} />}
-            isActive={imageGenEnabled}
-            onClick={() => setImageGenEnabled(!imageGenEnabled)}
-            tooltip="Toggle image generation"
+            icon={<GlobeIcon size={14} />}
+            isActive={selectedTools.has('webSearch')}
+            onClick={() => handleToggleTool('webSearch')}
+            tooltip="Toggle web search"
             disabled={status !== 'ready' || !supportsTools || isUploading}
           />
         </div>
@@ -392,7 +440,8 @@ export const MultimodalInput = memo(
       prevProps.selectedChatModel !== nextProps.selectedChatModel ||
       prevProps.status !== nextProps.status ||
       prevProps.className !== nextProps.className ||
-      prevProps.supportsTools !== nextProps.supportsTools
+      prevProps.supportsTools !== nextProps.supportsTools ||
+      prevProps.selectedTools !== nextProps.selectedTools
     ) {
       return false; // Props are different, re-render
     }
@@ -414,14 +463,12 @@ export const MultimodalInput = memo(
       prevProps.setAttachments !== nextProps.setAttachments ||
       prevProps.setMessages !== nextProps.setMessages ||
       prevProps.append !== nextProps.append ||
-      prevProps.handleSubmit !== nextProps.handleSubmit
+      prevProps.handleSubmit !== nextProps.handleSubmit ||
+      prevProps.onModelChange !== nextProps.onModelChange ||
+      prevProps.onSelectedToolsChange !== nextProps.onSelectedToolsChange
     ) {
       // Added function checks
       return false; // Props are different, re-render
-    }
-
-    if (prevProps.onModelChange !== nextProps.onModelChange) {
-      return false;
     }
 
     // If all checks pass, props are considered equal

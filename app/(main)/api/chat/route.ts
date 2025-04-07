@@ -30,22 +30,48 @@ import type { Json } from '@/supabase/types';
 import webSearch from '@/lib/ai/tools/web-search';
 import { requestContractFields } from '@/lib/ai/tools/request-contract-fields';
 import { sendDocumentForSigning } from '@/lib/ai/tools/send-document-for-signing';
+import { z } from 'zod';
+import { imageGenerationTools } from '@/lib/ai/tools/generate-image';
 
 export const maxDuration = 60;
 
+// Define Zod schema for the request body
+const ChatRequestSchema = z.object({
+  id: z.string(),
+  // Using z.any() for messages due to complex structure, refine if needed
+  messages: z.array(z.any()),
+  selectedChatModel: z.string(),
+  supportsTools: z.boolean(),
+  selectedTools: z.array(z.string()).optional(),
+});
+
 export async function POST(request: Request) {
   try {
+    const body = await request.json();
+    const parsedData = ChatRequestSchema.safeParse(body);
+
+    if (!parsedData.success) {
+      console.error('Validation Error:', parsedData.error.errors);
+      return new Response(
+        JSON.stringify({
+          error: 'Invalid request body',
+          details: parsedData.error.errors,
+        }),
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      );
+    }
+
+    // Use validated data from here on
     const {
       id,
       messages,
       selectedChatModel,
       supportsTools,
-    }: {
-      id: string;
-      messages: Array<UIMessage>;
-      selectedChatModel: string;
-      supportsTools: boolean;
-    } = await request.json();
+      selectedTools, // This is already correctly typed by the schema
+    } = parsedData.data;
 
     const authResult = await auth();
     if (!authResult) {
@@ -127,20 +153,25 @@ export async function POST(request: Request) {
             user: user,
             dataStream,
           }),
+          ...imageGenerationTools,
         };
 
-        const selectedTools: (keyof typeof tools)[] = [
-          'getWeather',
-          'createDocument',
-          'updateDocument',
-          'requestContractFields',
-          'requestSuggestions',
-          'webSearch',
-          'sendDocumentForSigning',
-        ];
+        const validSelectedToolNames = (selectedTools ?? []).filter(
+          (toolName) => toolName in tools,
+        ) as (keyof typeof tools)[];
 
-        const activeTools = supportsTools ? tools : undefined;
-        const activeToolNames = supportsTools ? selectedTools : undefined;
+        const activeToolNames =
+          supportsTools && validSelectedToolNames.length > 0
+            ? validSelectedToolNames
+            : undefined;
+
+        const activeTools = activeToolNames
+          ? Object.fromEntries(
+              Object.entries(tools).filter(([key]) =>
+                activeToolNames.includes(key as keyof typeof tools),
+              ),
+            )
+          : undefined;
 
         const result = streamText({
           model: selectedChatModel.startsWith('chat-')

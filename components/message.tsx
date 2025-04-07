@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { memo, useState } from 'react';
 import type { Vote } from '@/lib/db/schema';
 import { DocumentToolCall, DocumentToolResult } from './document';
-import { PencilEditIcon, SparklesIcon } from './icons';
+import { PencilEditIcon, SparklesIcon, ImageIcon } from './icons';
 import { Markdown } from './markdown';
 import { MessageActions } from './message-actions';
 import { PreviewAttachment } from './preview-attachment';
@@ -167,6 +167,15 @@ const PurePreviewMessage = ({
                         <SearchResults />
                       ) : toolName === 'getWeather' ? (
                         <Weather />
+                      ) : toolName.startsWith('generate_image_using_') ? (
+                        <div className="relative p-4 border rounded-md bg-muted/50 flex flex-col items-center">
+                          <div className="w-full h-32 flex items-center justify-center bg-muted/50 rounded-md animate-pulse mb-2">
+                            <ImageIcon size={32} />
+                          </div>
+                          <p className="text-sm text-muted-foreground animate-pulse">
+                            Generating image...
+                          </p>
+                        </div>
                       ) : toolName === 'createDocument' ? (
                         <DocumentPreview isReadonly={isReadonly} args={args} />
                       ) : toolName === 'updateDocument' ? (
@@ -201,6 +210,28 @@ const PurePreviewMessage = ({
                         <SearchResults results={result} />
                       ) : toolName === 'getWeather' ? (
                         <Weather weatherAtLocation={result} />
+                      ) : toolName.startsWith('generate_image_using_') ? (
+                        <div className="relative p-4 border rounded-md bg-muted/50">
+                          {result?.url ? (
+                            <div className="flex flex-col">
+                              <img
+                                src={result.url}
+                                alt={result.alt || 'Generated image'}
+                                className="w-full rounded-md object-contain"
+                                style={{ maxHeight: '400px' }}
+                              />
+                              {result.prompt && (
+                                <p className="text-xs text-muted-foreground mt-2">
+                                  Prompt: {result.prompt}
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-destructive">
+                              Image generation failed
+                            </p>
+                          )}
+                        </div>
                       ) : toolName === 'createDocument' ? (
                         <DocumentPreview
                           isReadonly={isReadonly}

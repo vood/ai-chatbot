@@ -34,6 +34,12 @@ import { CodeIcon } from '@/components/icons';
 
 import { CheckCircleFillIcon, ChevronDownIcon } from './icons';
 
+// Removed ModelCategory enum
+// export enum ModelCategory {
+//   Chat = 'chat',
+//   Image = 'image',
+// }
+
 // Export the model type so it can be used in the profile tab
 export interface OpenRouterModel {
   slug: string; // Use slug as the primary identifier
@@ -256,7 +262,6 @@ function PureModelSelector({
   const [optimisticModelId, setOptimisticModelId] =
     useOptimistic(selectedModelId);
   const [models, setModels] = useState<OpenRouterModel[]>([]); // Start empty
-  const [visibleModels, setVisibleModels] = useState<OpenRouterModel[]>([]); // New state for filtered models
   const [modelVisibility, setModelVisibility] = useState<ModelVisibility>(
     DEFAULT_VISIBLE_MODELS,
   ); // Model visibility settings
@@ -331,20 +336,12 @@ function PureModelSelector({
     fetchModels();
   }, []);
 
-  // Effect to filter models based on visibility settings whenever models or visibility changes
-  useEffect(() => {
-    // Filter models based on visibility settings
-    const filtered = models.filter((model) => {
-      // Include the model if:
-      // 1. It's explicitly marked as visible in modelVisibility
-      // 2. It's the currently selected model (always show it)
-      return (
-        Boolean(modelVisibility[model.slug]) || model.slug === optimisticModelId
-      );
-    });
-
-    setVisibleModels(filtered);
-  }, [models, modelVisibility, optimisticModelId]);
+  // Filter models based on visibility
+  const visibleModels = useMemo(() => {
+    return models
+      .filter((model) => modelVisibility[model.slug]) // Only filter by visibility
+      .sort((a, b) => a.name.localeCompare(b.name)); // Sort alphabetically
+  }, [models, modelVisibility]); // Removed category dependency
 
   // Wrap handlers in useCallback
   const handleSelect = useCallback(
@@ -435,7 +432,7 @@ function PureModelSelector({
                 </span>
               </>
             ) : visibleModels.length > 0 ? (
-              'Select model'
+              'Models'
             ) : (
               'No models available'
             )}
@@ -482,7 +479,7 @@ function PureModelSelector({
                   )}
                 </CommandEmpty>
               ) : (
-                <CommandGroup>
+                <CommandGroup heading="Models">
                   {filteredModels.map((model) => (
                     <ModelListItem
                       key={model.slug}
@@ -616,15 +613,12 @@ function PureModelSelector({
 
 // Memoized component (keep existing comparison logic)
 export const ModelSelector = memo(PureModelSelector, (prevProps, nextProps) => {
-  // Update memo comparison if necessary, especially for the new function prop
   return (
     prevProps.selectedModelId === nextProps.selectedModelId &&
     prevProps.className === nextProps.className &&
-    // No longer need to compare onSelectModel directly if it's stable via useCallback
-    // Ensure PureModelSelector itself is memoized correctly if its props change often
-    // Or rely on the memoization of ModelListItem for performance gain.
-    // Comparing function references IS correct if using useCallback.
     prevProps.onSelectModel === nextProps.onSelectModel
+    // Removed category check
+    // Add checks for other props if necessary
   );
 });
 

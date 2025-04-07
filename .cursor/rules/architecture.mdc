@@ -9,7 +9,8 @@ alwaysApply: true
 
 *   Framework: Next.JS 15
 *   Runtime: Node.js 22
-*   UI Library: React
+*   UI Library: React, shadcn/ui
+*   Backend Supabase   
 
 ## UI Components & Styling
 
@@ -18,10 +19,15 @@ alwaysApply: true
 *   Icons: Lucide Icons
 *   Notifications: Sonner for toasts, don't use custom hook
 
+## UI with shadcn/ui
+* Use standard components of shadcn/ui as much as possible
+* Use sonner for toasts / notifications
+* All componets are in components/ui, if something is missing install with `npx shadcn@latest add <component>`
+
 ## Backend & Database (Supabase)
 
 *   Database Interaction:
-    *   All database logic must reside within `lib/db/queries`.
+    *   All database logic must reside within `lib/db/queries/<model>.ts`.
     *   Database queries must be executed server-side only. Direct client-side database access is prohibited.
     *   Use Next.js Server Actions to expose database functionality to the frontend when necessary.
 *   Complex Server-Side Logic:
@@ -41,6 +47,7 @@ alwaysApply: true
 
 ## Server Actions
 
+*   Server Actions vs REST API: prefer rest api in /app/api/* directory over actions. 
 *   Server Actions: Core server actions should be defined in the `/actions` directory
 *   API Context: Keep server actions focused on specific database or external API operations
 *   Authentication: All server actions must include proper authentication checks

@@ -21,6 +21,7 @@ import { useArtifactSelector } from '@/hooks/use-artifact';
 import { PromptProvider } from '@/hooks/use-prompt';
 import { toast } from 'sonner';
 import { saveChatModelAsCookie } from '@/app/(main)/actions';
+import { DEFAULT_IMAGE_TOOL_NAME } from '@/lib/ai/models';
 
 // Define the model type again for client-side fetching
 interface OpenRouterModel {
@@ -54,15 +55,17 @@ export function Chat({
   );
   const [supportsToolsClient, setSupportsToolsClient] = useState(false); // Keep this state
 
-  // REMOVE useSWR hook and useEffect for fetching model details
-  /*
-  const { data: selectedModelData, error: modelFetchError } = useSWR<OpenRouterModel>(...);
-  useEffect(() => { ... }, [selectedModelData, modelFetchError]);
-  */
-
-  // Initialize supportsToolsClient based on initial model data (if available synchronously, otherwise might need a different approach or accept initial state)
-  // For now, we'll rely on the first model selection to set it.
-  // A more robust solution might involve passing initial supportsTools from the page.
+  // Add state for the selected tools using a Set
+  const [selectedTools, setSelectedTools] = useState<ReadonlySet<string>>(
+    () => {
+      // Initialize with default tool if available
+      const initialTools = new Set<string>();
+      if (DEFAULT_IMAGE_TOOL_NAME) {
+        initialTools.add(DEFAULT_IMAGE_TOOL_NAME);
+      }
+      return initialTools;
+    },
+  );
 
   const {
     messages,
@@ -80,6 +83,7 @@ export function Chat({
       id,
       selectedChatModel: currentModelId,
       supportsTools: supportsToolsClient,
+      selectedTools: Array.from(selectedTools), // Convert Set to Array for API
     },
     initialMessages,
     experimental_throttle: 100,
@@ -114,10 +118,15 @@ export function Chat({
     setCurrentModelId(model.slug);
     const supports = model.endpoint?.supports_tool_parameters ?? false;
     setSupportsToolsClient(supports);
-    // Update cookie preference if needed
-    setTimeout(() => {
-      saveChatModelAsCookie(model.slug); // Keep this if necessary
-    }, 1000);
+    // // Update cookie preference if needed
+    // setTimeout(() => {
+    //   saveChatModelAsCookie(model.slug); // Keep this if necessary
+    // }, 1000);
+  };
+
+  // Updated handler for tool selection changes
+  const handleSelectedToolsChange = (newSelectedTools: Set<string>) => {
+    setSelectedTools(newSelectedTools);
   };
 
   return (
@@ -145,7 +154,7 @@ export function Chat({
           {!isReadonly && (
             <MultimodalInput
               selectedChatModel={currentModelId}
-              onModelChange={handleModelChange} // Pass the updated handler
+              onModelChange={handleModelChange}
               chatId={id}
               input={input}
               setInput={setInput}
@@ -157,7 +166,9 @@ export function Chat({
               messages={messages as UIMessage[]}
               setMessages={setMessages}
               append={append}
-              supportsTools={supportsToolsClient} // Pass the state
+              supportsTools={supportsToolsClient}
+              selectedTools={selectedTools}
+              onSelectedToolsChange={handleSelectedToolsChange}
             />
           )}
         </form>

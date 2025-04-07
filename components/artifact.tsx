@@ -8,6 +8,8 @@ import {
   useCallback,
   useEffect,
   useState,
+  useRef,
+  useMemo,
 } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 import { useDebounceCallback, useWindowSize } from 'usehooks-ts';
@@ -167,6 +169,16 @@ function PureArtifact({
   const [currentVersionIndex, setCurrentVersionIndex] = useState(-1);
 
   const { open: isSidebarOpen } = useSidebar();
+
+  // Initialize selectedTools state with an empty Set
+  const [selectedTools, setSelectedTools] = useState<ReadonlySet<string>>(
+    new Set(),
+  );
+
+  // Handler for tool selection changes
+  const handleSelectedToolsChange = (newSelectedTools: Set<string>) => {
+    setSelectedTools(newSelectedTools);
+  };
 
   // Effect to handle incoming document annotations from messages
   useEffect(() => {
@@ -452,6 +464,8 @@ function PureArtifact({
                     append={append}
                     className="bg-background dark:bg-muted"
                     setMessages={setMessages}
+                    selectedTools={selectedTools}
+                    onSelectedToolsChange={handleSelectedToolsChange}
                   />
                 </form>
               </div>
