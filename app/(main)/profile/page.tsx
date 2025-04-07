@@ -1,7 +1,6 @@
 'use client';
 
 import { Settings } from 'lucide-react';
-import type { Metadata } from 'next';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import ProfileTab from './tabs/profile-tab';

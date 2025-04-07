@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, memo } from 'react';
-import { Check, Image as DefaultImageIcon } from 'lucide-react';
+import { Check, Palette as DefaultImageIcon } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -17,10 +17,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import {
-  SUPPORTED_IMAGE_MODELS,
-  type ImageModelDefinition,
-} from '@/lib/ai/models';
+import { SUPPORTED_IMAGE_MODELS } from '@/lib/ai/models';
 import {
   Tooltip,
   TooltipContent,
@@ -56,33 +53,45 @@ function PureImageModelSelector({
     setOpen(false);
   };
 
+  const handleTogglePress = () => {
+    if (selectedModel) {
+      // If a model is selected, unselect it
+      onSelectTool('');
+    } else {
+      // If no model is selected, open the dropdown
+      setOpen(true);
+    }
+  };
+
   const TriggerIcon = selectedModel?.iconComponent || DefaultImageIcon;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <TooltipProvider delayDuration={100}>
+      {/* <TooltipProvider delayDuration={100}>
         <Tooltip>
-          <TooltipTrigger asChild>
-            <PopoverTrigger asChild>
-              <Toggle
-                pressed={!!selectedModel}
-                variant="outline"
-                size="sm"
-                className="size-8"
-                aria-expanded={open}
-              >
-                <TriggerIcon className="h-4 w-4" />
-                <span className="sr-only">Select Image Generation Tool</span>
-              </Toggle>
-            </PopoverTrigger>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" className="text-xs">
+          <TooltipTrigger asChild> */}
+      <PopoverTrigger asChild>
+        <Toggle
+          pressed={!!selectedToolName}
+          onPressedChange={handleTogglePress}
+          variant="outline"
+          size="sm"
+          data-state={selectedToolName ? 'on' : 'off'}
+          className="size-8"
+          disabled={disabled}
+        >
+          <TriggerIcon className="h-4 w-4" />
+          <span className="sr-only">Select Image Generation Tool</span>
+        </Toggle>
+      </PopoverTrigger>
+      {/* </TooltipTrigger>
+          <TooltipContent side="top" className="text-xs">
             {selectedModel
               ? `Image Model: ${selectedModel.name}`
               : 'Select Image Model'}
           </TooltipContent>
         </Tooltip>
-      </TooltipProvider>
+      </TooltipProvider> */}
       <PopoverContent className="w-[250px] p-0">
         <Command>
           <CommandList>
@@ -109,7 +118,7 @@ function PureImageModelSelector({
                       className={cn(
                         'ml-auto h-4 w-4 flex-shrink-0 mt-0.5 self-start',
                         selectedToolName === model.toolName
-                          ? 'opacity-100'
+                          ? 'opacity-100 text-primary'
                           : 'opacity-0',
                       )}
                       aria-hidden="true"
