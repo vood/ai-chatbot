@@ -7,7 +7,6 @@ import ProfileTab from './tabs/profile-tab';
 import ShortcutsTab from './tabs/shortcuts-tab';
 import MyDataTab from './tabs/my-data-tab';
 import WorkspaceSettingsTab from './tabs/workspace-settings-tab';
-import TeamTab from './tabs/team-tab';
 import BillingTab from './tabs/billing-tab';
 import AppsSettingsTab from './tabs/apps-settings-tab';
 import ApiKeysTab from './tabs/api-keys-tab';
@@ -75,20 +74,7 @@ export default function ProfilePage() {
               scroll={false}
               replace
             >
-              Workspace Settings (1)
-            </Link>
-            <Link
-              href="?tab=team"
-              className={`rounded-md px-3 py-2 text-sm font-medium ${
-                tab === 'team'
-                  ? 'bg-background'
-                  : 'text-muted-foreground hover:bg-background/50'
-              }`}
-              prefetch={false}
-              scroll={false}
-              replace
-            >
-              Team (1)
+              Workspace Access and Settings (1)
             </Link>
             <Link
               href="?tab=billing"
@@ -176,7 +162,6 @@ export default function ProfilePage() {
           {tab === 'shortcuts' && <ShortcutsTab />}
           {tab === 'my-data' && <MyDataTab />}
           {tab === 'workspace' && <WorkspaceSettingsTab />}
-          {tab === 'team' && <TeamTab />}
           {tab === 'billing' && <BillingTab />}
           {tab === 'apps' && <AppsSettingsTab />}
           {tab === 'api-keys' && <ApiKeysTab />}
