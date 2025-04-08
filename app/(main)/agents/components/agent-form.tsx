@@ -20,19 +20,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/button';
-import { AvatarUpload } from '@/components/avatar-upload';
-import { AgentModelSelector } from './model-selector';
-import type { OpenRouterModel } from './model-selector';
+import { ImageUploader } from '@/components/image-uploader';
+import type { OpenRouterModel } from '@/types';
 import { Slider } from '@/components/ui/slider';
-import { Badge } from '@/components/ui/badge';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
+import type { Tables, TablesInsert } from '@/supabase/types';
+import { ModelSelector } from '@/components/model-selector';
 
 // Define a simple interface without the problematic fields
 interface AgentFormValues {
@@ -44,7 +38,7 @@ interface AgentFormValues {
   context_length: number;
   image_path?: string | null;
   conversation_starters?: string[];
-  files?: KnowledgeFile[];
+  files?: File[];
 }
 
 // Define Zod schema for Agent form validation
@@ -61,15 +55,14 @@ const agentSchema = z.object({
     .number()
     .int({ message: 'Context length must be an integer' })
     .min(1, { message: 'Context length must be positive' }),
-  image_path: z.string().url().optional().nullable(),
+  image_path: z.string().url().optional().or(z.literal('')),
   conversation_starters: z.array(z.string()).optional(),
   files: z
     .array(
       z.object({
-        id: z.string().uuid(),
+        id: z.string().uuid().optional(),
         name: z.string(),
-        storage_path: z.string(),
-        content: z.string(),
+        file_path: z.string(),
         size: z.number(),
         type: z.string(),
       }),
@@ -80,15 +73,9 @@ const agentSchema = z.object({
 // Use Zod's inference for the form data type
 type AgentFormData = z.infer<typeof agentSchema>;
 
+export type KnowledgeFile = TablesInsert<'files'>;
+
 // Update the KnowledgeFile type definition to match what we're using
-export type KnowledgeFile = {
-  id: string;
-  name: string;
-  storage_path: string;
-  content: string;
-  size: number;
-  type: string;
-};
 
 interface AgentFormProps {
   initialData?: {
@@ -101,14 +88,12 @@ interface AgentFormProps {
     context_length?: number;
     image_path?: string | null;
     conversation_starters?: string[] | null;
-    knowledge_files?: KnowledgeFile[]; // Use the defined type
-    files?: KnowledgeFile[]; // Add this field to match what's being used in the form
+    files?: []; // Add this field to match what's being used in the form
   };
   onSubmit: (data: AgentFormData) => Promise<void>;
   onCancel: () => void;
   isSubmitting: boolean;
-  setIsSubmitting: React.Dispatch<React.SetStateAction<boolean>>;
-  knowledge_files?: KnowledgeFile[];
+  setIsSubmitting?: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export function AgentForm({
@@ -117,7 +102,6 @@ export function AgentForm({
   onCancel,
   isSubmitting: formSubmitting,
   setIsSubmitting: setFormSubmitting,
-  knowledge_files,
 }: AgentFormProps) {
   const router = useRouter();
   const [agentImagePreview, setAgentImagePreview] = useState<
@@ -134,7 +118,7 @@ export function AgentForm({
   const [maxContextLength, setMaxContextLength] = useState(32000);
   const [tempRange, setTempRange] = useState({ min: 0, max: 2 });
   const [files, setFiles] = useState<(File | KnowledgeFile)[]>(
-    initialData?.knowledge_files || [],
+    initialData?.files || [],
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(
@@ -159,15 +143,10 @@ export function AgentForm({
 
   useEffect(() => {
     console.log('Form values:', form.getValues());
-    console.log('Initial data:', form.formState.errors);
-  }, [form, initialData, form.formState.errors]);
-
-  // Watch for changes to initialData.knowledge_files to update the files state
-  useEffect(() => {
-    if (initialData?.knowledge_files) {
-      setFiles(initialData.knowledge_files);
-    }
-  }, [initialData?.knowledge_files]);
+    console.log('Initial data:', initialData);
+    console.log('Files state:', files);
+    console.log('Form errors:', form.formState.errors);
+  }, [form, initialData, form.formState.errors, files]);
 
   // Function to extract storage path from public URL
   const getStoragePathFromUrl = (
@@ -213,6 +192,17 @@ export function AgentForm({
 
   // Handle form submission
   const handleFormSubmit: SubmitHandler<AgentFormData> = async (data) => {
+    // Check if image_path is null or empty and we have initialData with image_path
+    if (
+      (!data.image_path || data.image_path === '') &&
+      initialData?.image_path
+    ) {
+      // Keep the original image_path if no new image was selected
+      data.image_path = initialData.image_path;
+    } else if (data.image_path === null) {
+      data.image_path = ''; // Use empty string instead of null
+    }
+
     setIsSubmitting(true);
     if (setFormSubmitting) setFormSubmitting(true);
 
@@ -220,29 +210,51 @@ export function AgentForm({
       const filesData: KnowledgeFile[] = [];
       const supabaseClient = createClient();
 
+      // Get the current user ID for file uploads
+      const {
+        data: { user },
+      } = await supabaseClient.auth.getUser();
+      if (!user) {
+        toast.error('Authentication error', {
+          description: 'You must be logged in to upload files',
+        });
+        throw new Error('Authentication failed');
+      }
+
       for (const file of files) {
         try {
           if (isFileObject(file)) {
             // Upload to storage if it's a File object
             const fileName = file.name;
-            const filePath = `knowledge_files/${uuidv4()}-${fileName}`;
+            // Create a path with user ID as first folder
+            const filePath = `${user.id}/${uuidv4()}-${fileName.replace(/\s+/g, '_')}`;
 
             const { error: uploadError } = await supabaseClient.storage
-              .from('agents')
+              .from('files') // Use 'files' bucket instead of 'agents'
               .upload(filePath, file);
 
             if (uploadError) {
               console.error('Error uploading file:', uploadError);
+              toast.error(`Failed to upload ${fileName}`, {
+                description: 'Please try again later',
+              });
               continue;
             }
 
+            // Get the public URL
+            const {
+              data: { publicUrl },
+            } = supabaseClient.storage.from('files').getPublicUrl(filePath);
+
             filesData.push({
-              id: uuidv4(),
               name: fileName,
-              storage_path: filePath,
-              content: '',
+              file_path: filePath,
+              description: '',
               size: file.size,
               type: file.type,
+              tokens: 0,
+              sharing: 'private',
+              user_id: user.id,
             });
           } else {
             // Add existing knowledge file
@@ -252,6 +264,8 @@ export function AgentForm({
           console.error('Error processing file:', error);
         }
       }
+
+      console.log('Files data:', filesData);
 
       // Submit with proper fields
       await onSubmit({
@@ -320,42 +334,37 @@ export function AgentForm({
         {/* Agent Image */}
         <div className="flex justify-center mb-6">
           <div className="text-center">
-            <FormLabel className="block mb-2">Image</FormLabel>
-            <AvatarUpload
+            <ImageUploader
               initialImage={agentImagePreview}
               name={agentName || 'Agent'}
               size="lg"
+              bucket="assistant_images"
               onImageChange={(file) => {
                 if (file) {
                   console.log('Agent image selected:', file.name);
                   setAgentImageFile(file);
-
-                  // Create a temporary URL for preview
-                  const reader = new FileReader();
-                  reader.onload = (event) => {
-                    if (event.target?.result) {
-                      const previewUrl = event.target.result as string;
-                      setAgentImagePreview(previewUrl);
-                      // Don't set image_path in form yet - it will be set after upload
-                    }
-                  };
-                  reader.readAsDataURL(file);
-
-                  toast.info('Image selected', {
-                    description: 'New image will be uploaded on save.',
-                  });
+                  // Don't modify form.image_path here - let upload handle it
                 } else {
                   console.log('Agent image removed');
                   setAgentImagePreview(undefined);
                   setAgentImageFile(null);
-                  // Set image_path to null when image is removed
-                  form.setValue('image_path', null);
 
-                  toast.info('Image removed', {
-                    description: 'Agent image will be removed on save.',
-                  });
+                  // Only clear image_path if user explicitly removed the image
+                  if (initialData?.image_path) {
+                    // Keep track that the user wants to remove the image
+                    form.setValue('image_path', '');
+                    toast.info('Image will be removed on save');
+                  }
                 }
               }}
+              onImageUploaded={(url, path) => {
+                console.log('Image uploaded to:', url);
+                setAgentImagePreview(url);
+                form.setValue('image_path', url);
+                setAgentStoragePath(path);
+              }}
+              circular={true}
+              showPencilIcon={false}
             />
           </div>
         </div>
@@ -382,7 +391,7 @@ export function AgentForm({
               <FormItem>
                 <FormLabel>Model</FormLabel>
                 <FormControl>
-                  <AgentModelSelector
+                  <ModelSelector
                     selectedModelId={field.value}
                     onSelectModel={handleModelSelect}
                     className="w-full"
@@ -487,9 +496,7 @@ export function AgentForm({
                       className="mt-3"
                     />
                     <div className="flex justify-between">
-                      <span className="text-xs text-muted-foreground">
-                        Select a model
-                      </span>
+                      <span className="text-xs text-muted-foreground">0</span>
                       <span className="text-sm font-medium">
                         {field.value.toLocaleString()}
                       </span>
@@ -533,37 +540,46 @@ export function AgentForm({
 
             {files.length > 0 ? (
               <div className="border rounded-md overflow-hidden divide-y">
-                {files.map((file, index) => (
-                  <div
-                    key={`file-${index}-${isFileObject(file) ? file.name : (file as KnowledgeFile).name}`}
-                    className="flex items-center justify-between p-3 hover:bg-muted/50"
-                  >
-                    <div className="flex items-center gap-3">
-                      <File className="h-4 w-4 text-muted-foreground" />
-                      <div className="grid gap-0.5">
-                        <p className="text-sm font-medium">
-                          {isFileObject(file)
-                            ? file.name
-                            : (file as KnowledgeFile).name}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {isFileObject(file)
-                            ? `${(file.size / 1024).toFixed(1)} KB`
-                            : `${((file as KnowledgeFile).size / 1024).toFixed(1)} KB`}
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleFileRemove(index)}
-                      className="text-muted-foreground hover:text-destructive"
+                {files.map((file, index) => {
+                  // Skip rendering invalid files
+                  const name = isFileObject(file)
+                    ? file.name
+                    : (file as KnowledgeFile).name;
+                  const size = isFileObject(file)
+                    ? file.size
+                    : (file as KnowledgeFile).size;
+
+                  // If we can't get name or size, it's likely an invalid file object
+                  if (!name) return null;
+
+                  return (
+                    <div
+                      key={`file-${index}-${name}`}
+                      className="flex items-center justify-between p-3 hover:bg-muted/50"
                     >
-                      <Trash2 className="h-4 w-4" />
-                      <span className="sr-only">Remove</span>
-                    </Button>
-                  </div>
-                ))}
+                      <div className="flex items-center gap-3">
+                        <File className="h-4 w-4 text-muted-foreground" />
+                        <div className="grid gap-0.5">
+                          <p className="text-sm font-medium">{name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {typeof size === 'number'
+                              ? `${(size / 1024).toFixed(1)} KB`
+                              : 'Unknown size'}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleFileRemove(index)}
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">Remove</span>
+                      </Button>
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-6 border border-dashed rounded-md">
@@ -648,20 +664,16 @@ export function AgentForm({
                   {starters.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
                       {starters.map((starter, index) => (
-                        <Badge
+                        <Button
                           key={`starter-${index}-${starter}`}
-                          className="text-xs"
+                          variant="outline"
+                          size="sm"
+                          className="rounded-full"
+                          onClick={() => removeStarter(index)}
                         >
                           {starter}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removeStarter(index)}
-                          >
-                            <X className="h-4 w-4" />
-                            <span className="sr-only">Remove</span>
-                          </Button>
-                        </Badge>
+                          <X className="h-4 w-4 pl-1 hover:cursor-pointer" />
+                        </Button>
                       ))}
                     </div>
                   ) : (

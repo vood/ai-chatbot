@@ -12,7 +12,7 @@ import { AgentDialog } from '@/app/(main)/agents/components/agent-dialog';
 import { DeleteAgentDialog } from '@/app/(main)/agents/components/delete-agent-dialog';
 
 // Agent type
-type Agent = Tables<'assistants'>;
+type Agent = Tables<'assistants'> & { files?: Tables<'files'>[] };
 
 export default function AgentsPage() {
   const { agents, loading, refetchAgents } = useAgents();
@@ -49,6 +49,8 @@ export default function AgentsPage() {
   const handleAddAgent = async (formData: any) => {
     setIsSubmitting(true);
     try {
+      // The formData from agent-form already includes the properly processed files array
+      // We don't need to modify it, just pass it through
       console.log('Calling API to add agent:', formData);
       const response = await fetch('/api/agents', {
         method: 'POST',
@@ -81,21 +83,9 @@ export default function AgentsPage() {
     setSelectedAgentId(agent.id!);
     setSelectedAgent(agent);
     setAgentStoragePath(getStoragePathFromUrl(agent.image_path));
+    setAgentFiles(agent.files || []);
 
-    // Fetch files associated with this agent
-    try {
-      const response = await fetch(`/api/agents?id=${agent.id}`);
-      if (response.ok) {
-        const files = await response.json();
-        setAgentFiles(files || []);
-      } else {
-        console.error('Failed to fetch agent files');
-        setAgentFiles([]);
-      }
-    } catch (error) {
-      console.error('Error fetching agent files:', error);
-      setAgentFiles([]);
-    }
+    // Fetch files associated with this agen
 
     setShowEditDialog(true);
   };
@@ -107,14 +97,13 @@ export default function AgentsPage() {
       // Make sure to include the files in the form data
       const dataWithFiles = {
         ...formData,
-        files: agentFiles,
       };
 
       console.log(
         `Calling API to update agent ${selectedAgentId}:`,
         dataWithFiles,
       );
-      const response = await fetch(`/api/agents?id=${selectedAgentId}`, {
+      const response = await fetch(`/api/agents/${selectedAgentId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dataWithFiles),
@@ -159,7 +148,7 @@ export default function AgentsPage() {
 
     try {
       // Delete from DB first
-      const response = await fetch(`/api/agents?id=${selectedAgentId}`, {
+      const response = await fetch(`/api/agents/${selectedAgentId}`, {
         method: 'DELETE',
       });
 
@@ -258,12 +247,7 @@ export default function AgentsPage() {
             onOpenChange={setShowEditDialog}
             title="Edit Agent"
             description="Update the agent configuration."
-            initialData={
-              {
-                ...selectedAgent,
-                knowledge_files: agentFiles,
-              } as any
-            }
+            initialData={selectedAgent}
             onSubmit={saveEditedAgent}
             onDelete={confirmDeleteAgent}
             isSubmitting={isSubmitting}

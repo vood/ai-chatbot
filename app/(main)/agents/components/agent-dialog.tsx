@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { TrashIcon } from '@/components/icons';
 import { Button } from '@/components/button';
@@ -15,7 +14,6 @@ import {
 import { toast } from 'sonner';
 import { AgentForm } from './agent-form';
 import type { Tables } from '@/supabase/types';
-import type { z } from 'zod';
 
 type Agent = Tables<'assistants'>;
 
@@ -54,18 +52,7 @@ export function AgentDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[800px]">
         <DialogHeader>
-          <DialogTitle>
-            {title}
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="ml-2"
-              onClick={handleValidate}
-            >
-              Check Validation
-            </Button>
-          </DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <div className="flex-1 overflow-auto">

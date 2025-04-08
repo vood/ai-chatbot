@@ -5,12 +5,13 @@ import {
   createClient as baseCreateClient,
 } from '@supabase/supabase-js';
 import { jwtDecode } from 'jwt-decode';
+import type { Database } from '@/supabase/types';
 // Make createClient async and await cookies()
 export async function createClient() {
   const cookieStore = await cookies();
 
   // Create a server supabase client with cookies
-  return createServerClient(
+  return createServerClient<Database>(
     // biome-ignore lint/style/noNonNullAssertion: Supabase URL is always set
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     // biome-ignore lint/style/noNonNullAssertion: Supabase anon key is always set

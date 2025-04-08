@@ -18,37 +18,9 @@ import {
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-
-// We'll define the OpenRouterModel type here since we may not be able to import it from model-selector.tsx
-interface OpenRouterModel {
-  slug: string;
-  name: string;
-  short_name: string;
-  description: string;
-  created_at: string;
-  context_length: number;
-  endpoint?: {
-    provider_info: {
-      name: string;
-      displayName: string;
-      icon?: {
-        url?: string;
-      };
-      isPrimaryProvider: boolean;
-    };
-    provider_display_name: string;
-    provider_name: string;
-    pricing: {
-      prompt: string;
-      completion: string;
-    };
-    supports_tool_parameters: boolean;
-    context_length: number;
-  };
-}
+import type { OpenRouterModel, ModelVisibility } from '@/types';
 
 // Type for the visibility dictionary
-type ModelVisibility = Record<string, boolean>;
 
 // Helper function to extract author from slug
 const getAuthorFromSlug = (slug: string): string => {
@@ -308,7 +280,7 @@ export default function ModelsTab() {
         (model) =>
           model.name.toLowerCase().includes(query) ||
           model.short_name?.toLowerCase().includes(query) ||
-          model.slug.toLowerCase().includes(query) ||
+          model.id.toLowerCase().includes(query) ||
           getAuthorFromSlug(model.slug).toLowerCase().includes(query),
       );
     }

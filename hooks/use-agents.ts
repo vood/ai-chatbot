@@ -38,3 +38,40 @@ export function useAgents() {
 
   return { agents, loading, refetchAgents: fetchAgents };
 }
+
+export function useAgent(id: string | null) {
+  const [agent, setAgent] = useState<Agent | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const fetchAgent = useCallback(async () => {
+    if (!id) {
+      setAgent(null);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/agents/${id}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch agent');
+      }
+      const data = await response.json();
+      setAgent(data as Agent);
+    } catch (error) {
+      if (error instanceof Error) {
+        toast.error(`Failed to load agent: ${error.message}`);
+      } else {
+        toast.error('Failed to load agent: An unknown error occurred');
+      }
+      setAgent(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    fetchAgent();
+  }, [fetchAgent]);
+
+  return { agent, loading, refetchAgent: fetchAgent };
+}

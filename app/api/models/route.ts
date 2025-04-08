@@ -1,62 +1,81 @@
 import { NextResponse } from 'next/server';
-
-// Define the model type for clarity, matching the expected structure
-interface OpenRouterModel {
-  slug: string;
-  name: string;
-  short_name: string;
-  description: string;
-  created_at: string;
-  context_length: number;
-  endpoint?: {
-    provider_info: {
-      name: string;
-      displayName: string;
-      icon?: {
-        url?: string;
-      };
-    };
-    provider_display_name: string;
-    provider_name: string;
-    pricing: {
-      prompt: string;
-      completion: string;
-    };
-    supports_tool_parameters: boolean;
-    context_length: number;
-  };
-}
+import { auth } from '@/lib/supabase/server';
+import { getAgentsForUser } from '@/lib/db/queries/agents';
+import type { OpenRouterModel } from '@/types';
 
 export async function GET() {
   try {
-    const response = await fetch('https://openrouter.ai/api/frontend/models', {
-      headers: {
-        // Add any necessary headers if required by OpenRouter in the future
-        Accept: 'application/json',
+    // Get regular models from OpenRouter
+    const openRouterResponse = await fetch(
+      'https://openrouter.ai/api/frontend/models',
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        },
       },
-      // Optional: Configure caching behavior if needed
-      // next: { revalidate: 3600 }, // Revalidate every hour, for example
-    });
+    );
 
-    if (!response.ok) {
-      console.error(
-        `Proxy failed to fetch models: ${response.status} ${response.statusText}`,
-      );
-      // Forward the error status and message if possible
-      return NextResponse.json(
-        { error: `Failed to fetch models from source: ${response.statusText}` },
-        { status: response.status },
+    if (!openRouterResponse.ok) {
+      throw new Error(
+        `Failed to fetch models from OpenRouter: ${openRouterResponse.statusText}`,
       );
     }
 
-    const data = await response.json();
+    const openRouterData = await openRouterResponse.json();
 
-    // Return the data received from OpenRouter
-    return NextResponse.json(data);
-  } catch (error: any) {
-    console.error('Error in proxy API route for models:', error);
+    // Fetch agents for the current user
+    const user = await auth();
+    let agentModels: OpenRouterModel[] = [];
+
+    if (user) {
+      const workspaceId = user.current_workspace;
+      if (workspaceId) {
+        const agents = await getAgentsForUser(user.id, workspaceId);
+
+        // Convert agents to model format compatible with model-selector
+        agentModels = agents.map((agent) => ({
+          slug: `agent/${agent.id}`,
+          name: agent.name,
+          short_name: agent.name,
+          description: agent.description || agent.prompt,
+          created_at: agent.created_at,
+          context_length: agent.context_length || 4000,
+          author: 'Agent',
+          endpoint: {
+            provider_info: {
+              name: 'Agent',
+              displayName: 'Agent',
+              isPrimaryProvider: true,
+              icon: {
+                url: agent.image_path || '/assets/agent-icon.svg',
+              },
+            },
+            provider_display_name: 'Agent',
+            provider_name: 'custom_agent',
+            pricing: {
+              prompt: '0',
+              completion: '0',
+            },
+            supports_tool_parameters: true,
+            context_length: agent.context_length || 4000,
+          },
+          is_agent: true,
+        }));
+      }
+    }
+
+    // Combine OpenRouter models with agent models
+    const combinedModels = {
+      data: [...openRouterData.data, ...agentModels],
+    };
+
+    return NextResponse.json(combinedModels);
+  } catch (error) {
+    console.error('Error fetching models:', error);
     return NextResponse.json(
-      { error: `Internal Server Error: ${error.message || 'Unknown error'}` },
+      { error: 'Failed to fetch models' },
       { status: 500 },
     );
   }

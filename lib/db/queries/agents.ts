@@ -1,3 +1,4 @@
+import type { KnowledgeFile } from '@/app/(main)/agents/components/agent-form';
 import { createClient } from '@/lib/supabase/server';
 import type { Tables, TablesInsert } from '@/supabase/types';
 
@@ -8,17 +9,25 @@ export type AssistantFile = TablesInsert<'assistant_files'>;
 
 export async function getAgentsForUser(userId: string, workspaceId: string) {
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc('get_assistants_for_user', {
-    p_user_id: userId,
-    p_workspace_id: workspaceId,
-  });
+  const { data, error } = await supabase
+    .from('assistant_workspaces')
+    .select('*, assistants(*, assistant_files(*, files(*)))')
+    .eq('user_id', userId)
+    .eq('workspace_id', workspaceId);
 
   if (error) {
     console.error('Error fetching agents:', error);
     throw error;
   }
 
-  return data || [];
+  return (
+    data
+      .flatMap((workspace) => workspace.assistants)
+      .map((assistant) => ({
+        ...assistant,
+        files: assistant.assistant_files.flatMap((file) => file.files),
+      })) || []
+  );
 }
 
 // Function to create a file record in the database
@@ -51,10 +60,10 @@ export async function createFileRecord(
 
   if (workspaceError) {
     console.error('Error associating file with workspace:', workspaceError);
-    // Try to rollback the file creation
-    await supabase.from('files').delete().eq('id', file.id);
     throw workspaceError;
   }
+
+  console.log('File created:', file);
 
   return file;
 }
@@ -82,7 +91,13 @@ export async function associateFilesWithAssistant(
     .select();
 
   if (error) {
-    console.error('Error associating files with assistant:', error);
+    console.error(
+      'Error associating files with assistant:',
+      error,
+      fileIds,
+      assistantId,
+      userId,
+    );
     throw error;
   }
 
@@ -219,22 +234,23 @@ export async function deleteAgent(id: string) {
   return true;
 }
 
-// Get files associated with an assistant
-export async function getAssistantFiles(assistantId: string) {
+export async function getAgentById(id: string) {
   const supabase = await createClient();
-
   const { data, error } = await supabase
-    .from('assistant_files')
-    .select(`
-      file_id,
-      files (*)
-    `)
-    .eq('assistant_id', assistantId);
+    .from('assistants')
+    .select('*, assistant_files(*, files(*))')
+    .eq('id', id)
+    .single();
 
   if (error) {
-    console.error('Error fetching assistant files:', error);
+    console.error('Error fetching agent by ID:', error);
     throw error;
   }
 
-  return data?.map((item) => item.files) || [];
+  return data
+    ? {
+        ...data,
+        files: data.assistant_files?.flatMap((file) => file.files) || [],
+      }
+    : null;
 }

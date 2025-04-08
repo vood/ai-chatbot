@@ -191,7 +191,7 @@ export function MCPToolsMenu({
           disabled={disabled}
         >
           <ServerIcon className="h-3.5 w-3.5" />
-          MCP Servers
+          {/* MCP Servers */}
           {selectedServerCount > 0 && (
             <Badge
               variant="secondary"

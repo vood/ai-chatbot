@@ -33,44 +33,7 @@ import { cn } from '@/lib/utils';
 import { CodeIcon } from '@/components/icons';
 
 import { CheckCircleFillIcon, ChevronDownIcon } from './icons';
-
-// Removed ModelCategory enum
-// export enum ModelCategory {
-//   Chat = 'chat',
-//   Image = 'image',
-// }
-
-// Export the model type so it can be used in the profile tab
-export interface OpenRouterModel {
-  slug: string; // Use slug as the primary identifier
-  name: string;
-  short_name: string;
-  description: string;
-  created_at: string; // ISO date string
-  context_length: number;
-  author: string;
-  endpoint?: {
-    // Endpoint can be optional or null
-    provider_info: {
-      name: string;
-      displayName: string;
-      icon?: {
-        url?: string; // Icon URL might be optional
-      };
-    };
-    provider_display_name: string;
-    provider_name: string;
-    pricing: {
-      prompt: string;
-      completion: string;
-    };
-    supports_tool_parameters: boolean;
-    context_length: number; // Context length might also be here
-  };
-}
-
-// Type for the visibility dictionary
-type ModelVisibility = Record<string, boolean>;
+import type { OpenRouterModel, ModelVisibility } from '@/types';
 
 // Default visible models if no settings are available yet
 const DEFAULT_VISIBLE_MODELS = {
@@ -103,9 +66,13 @@ function FallbackIcon({ size = 18 }: { size?: number }) {
 const renderProviderIcon = (model?: OpenRouterModel) => {
   const iconUrl = model?.endpoint?.provider_info.icon?.url;
   if (iconUrl) {
-    const absoluteIconUrl = iconUrl.startsWith('/')
-      ? `https://openrouter.ai${iconUrl}` // Prepend base URL for relative paths
-      : iconUrl;
+    // For agent models or localhost URLs, use them directly without modification
+    const absoluteIconUrl =
+      model?.is_agent || iconUrl.includes('localhost')
+        ? iconUrl
+        : iconUrl.startsWith('/')
+          ? `https://openrouter.ai${iconUrl}` // Prepend base URL for relative paths
+          : iconUrl;
     return (
       <Image
         key={model?.slug || 'icon'} // Add key for React
@@ -116,23 +83,14 @@ const renderProviderIcon = (model?: OpenRouterModel) => {
         className="rounded-sm object-contain" // Added object-contain
         onError={(e) => {
           // Hide broken image and show fallback
+          e.currentTarget.style.display = 'none';
           const parent = e.currentTarget.parentElement;
           if (parent) {
-            // Attempt to find or create a fallback container
-            let fallback = parent.querySelector('.fallback-icon-container');
-            if (!fallback) {
-              fallback = document.createElement('span');
-              fallback.className = 'fallback-icon-container'; // Add class for potential styling
-              // Render FallbackIcon manually here or adjust logic
-              // For simplicity, just hiding the image for now
-            }
-            // Show fallback if needed
+            // Add fallback icon when image fails to load
+            parent.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" class="opacity-50"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z" /></svg>`;
           }
-          e.currentTarget.style.display = 'none';
         }}
       />
-      // Optionally, include a sibling span for the fallback icon that can be shown onError
-      // <span className="fallback-icon-container" style={{ display: 'none' }}><FallbackIcon size={18} /></span>
     );
   }
   return <FallbackIcon size={18} />;
@@ -167,6 +125,12 @@ const getProviderName = (model?: OpenRouterModel) => {
   );
 };
 
+// Check if model is an agent
+const isAgentModel = (model?: OpenRouterModel) => {
+  console.log('model', model);
+  return model?.is_agent === true || model?.slug.startsWith('agent/');
+};
+
 // --- End Helper Functions ---
 
 // --- ModelListItem Component ---
@@ -193,7 +157,8 @@ const ModelListItem = memo(
     if (!slug || !model.endpoint) return null;
 
     const isNew = isNewModel(model.created_at);
-    const isPro = Number(model.endpoint.pricing?.prompt) > 0;
+    const isPro = Number(model.endpoint?.pricing?.prompt) > 0;
+    const isAgent = isAgentModel(model);
 
     return (
       <CommandItem
@@ -224,7 +189,12 @@ const ModelListItem = memo(
                   Pro
                 </span>
               )}
-              {model.endpoint.supports_tool_parameters && (
+              {isAgent && (
+                <span className="rounded-sm bg-purple-500/10 px-1 py-0.5 leading-none text-purple-600 dark:text-purple-400">
+                  Agent
+                </span>
+              )}
+              {model.endpoint?.supports_tool_parameters && (
                 <CodeIcon size={10} />
               )}
             </div>
@@ -321,10 +291,7 @@ function PureModelSelector({
         }
         const data = await response.json();
         // Filter out models without an endpoint as they can't be used for chat
-        const validModels = data.data.filter(
-          (m: OpenRouterModel) => m.endpoint,
-        );
-        setModels(validModels);
+        setModels(data.data);
       } catch (error) {
         console.error('Error fetching models:', error);
         setModels([]); // Clear models on error
@@ -338,10 +305,17 @@ function PureModelSelector({
 
   // Filter models based on visibility
   const visibleModels = useMemo(() => {
+    // For agent models, ensure they're always visible regardless of the visibility settings
     return models
-      .filter((model) => modelVisibility[model.slug]) // Only filter by visibility
-      .sort((a, b) => a.name.localeCompare(b.name)); // Sort alphabetically
-  }, [models, modelVisibility]); // Removed category dependency
+      .filter((model) => modelVisibility[model.slug] || isAgentModel(model)) // Always show agents
+      .sort((a, b) => {
+        // First sort by agent status (agents first)
+        if (isAgentModel(a) && !isAgentModel(b)) return 1;
+        if (!isAgentModel(a) && isAgentModel(b)) return -1;
+        // Then sort alphabetically within each group
+        return a.name.localeCompare(b.name);
+      });
+  }, [models, modelVisibility]);
 
   // Wrap handlers in useCallback
   const handleSelect = useCallback(
@@ -414,7 +388,7 @@ function PureModelSelector({
           <Button
             variant="ghost"
             className={cn(
-              'flex items-center gap-1.5 justify-start text-xs px-2 h-8 w-full max-w-[170px]',
+              'flex items-center gap-1.5 justify-start text-xs px-2 h-8 w-full max-w-[140px]',
               className,
             )}
             disabled={isLoading}
@@ -479,19 +453,17 @@ function PureModelSelector({
                   )}
                 </CommandEmpty>
               ) : (
-                <CommandGroup heading="Models">
-                  {filteredModels.map((model) => (
-                    <ModelListItem
-                      key={model.slug}
-                      model={model}
-                      isSelected={model.slug === optimisticModelId}
-                      onSelect={handleSelect}
-                      onMouseEnter={handleMouseEnter}
-                      onMouseLeave={handleMouseLeave}
-                      setItemRef={setItemRef}
-                    />
-                  ))}
-                </CommandGroup>
+                filteredModels.map((model) => (
+                  <ModelListItem
+                    key={model.slug}
+                    model={model}
+                    isSelected={model.slug === optimisticModelId}
+                    onSelect={handleSelect}
+                    onMouseEnter={handleMouseEnter}
+                    onMouseLeave={handleMouseLeave}
+                    setItemRef={setItemRef}
+                  />
+                ))
               )}
               {/* Add settings link footer when dropdown is open */}
               {!isLoading && (

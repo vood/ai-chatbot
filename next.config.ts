@@ -15,6 +15,9 @@ const nextConfig: NextConfig = {
       {
         hostname: 'openrouter.ai',
       },
+      {
+        hostname: 'localhost',
+      },
     ],
   },
 };

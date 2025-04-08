@@ -34,7 +34,45 @@ import {
   sendDocumentForSigning,
   getWeather,
 } from '@/lib/ai/tools';
+import { incrementDailyMessageCount } from '@/lib/db/queries/stats';
+import { getAgentById } from '@/lib/db/queries/agents';
 export const maxDuration = 60;
+
+/**
+ * Filter tools based on support and selection criteria
+ */
+function getFilteredTools(
+  tools: Record<string, any>,
+  supportsTools: boolean,
+  selectedTools: string[] = [],
+  selectedMcpTools: string[] = [],
+  coreToolNames: string[] = [],
+) {
+  if (!supportsTools) {
+    return {};
+  }
+
+  // Filter valid selected tools that exist in the tools object
+  const activeToolNames = selectedTools.filter(
+    (toolName) => toolName in tools && !toolName.includes('_'), // Exclude MCP tools
+  );
+
+  // Only include specifically selected MCP tools
+  const validMcpToolNames = selectedMcpTools.filter(
+    (toolName) => toolName in tools,
+  );
+
+  // Get core tools that exist in the tools object
+  const coreTools = coreToolNames.filter((toolName) => toolName in tools);
+
+  // Build the filtered tools object
+  return Object.fromEntries(
+    [...coreTools, ...validMcpToolNames, ...activeToolNames].map((toolName) => [
+      toolName,
+      tools[toolName],
+    ]),
+  );
+}
 
 // Define Zod schema for the request body
 const ChatRequestSchema = z.object({
@@ -47,16 +85,6 @@ const ChatRequestSchema = z.object({
   // Add a data field for additional request data
   data: z.record(z.string(), z.string()).optional(),
 });
-
-// Extract all MCP tools for a given server
-const getMCPToolsForServer = (
-  serverName: string,
-  mcpTools: Record<string, any>,
-): string[] => {
-  return Object.keys(mcpTools).filter((toolName) =>
-    toolName.startsWith(`${serverName}_`),
-  );
-};
 
 export async function POST(request: Request) {
   try {
@@ -82,6 +110,7 @@ export async function POST(request: Request) {
       id,
       messages,
       selectedChatModel,
+      supportsTools,
       selectedTools, // This is already correctly typed by the schema
       data,
     } = parsedData.data;
@@ -98,6 +127,33 @@ export async function POST(request: Request) {
       return new Response('No user message found', { status: 400 });
     }
 
+    // Check if the selected model is an agent
+    const isAgent = selectedChatModel.startsWith('agent/');
+    let agentData = null;
+    let actualModelToUse = selectedChatModel;
+    let customSystemPrompt = null;
+
+    // If this is an agent, get the agent information
+    if (isAgent) {
+      try {
+        const agentId = selectedChatModel.replace('agent/', '');
+        agentData = await getAgentById(agentId);
+
+        if (!agentData) {
+          return new Response('Agent not found', { status: 404 });
+        }
+
+        // Use the agent's configured model and prompt
+        actualModelToUse = agentData.model;
+        customSystemPrompt = agentData.prompt;
+      } catch (error) {
+        console.error('Error fetching agent:', error);
+        return new Response('Error fetching agent information', {
+          status: 500,
+        });
+      }
+    }
+
     const chat = await getChatById({ id });
 
     if (!chat) {
@@ -110,14 +166,14 @@ export async function POST(request: Request) {
         name: title,
         userId: user.id,
         workspace_id: user.current_workspace,
-        model: selectedChatModel,
-        prompt: '',
+        model: selectedChatModel, // Use the agent ID when it's an agent
+        prompt: customSystemPrompt || '',
         context_length: 1000,
         embeddings_provider: 'openai',
         include_profile_context: true,
         include_workspace_instructions: true,
         temperature: 0.5,
-        assistant_id: null,
+        assistant_id: isAgent ? selectedChatModel.replace('agent/', '') : null,
         folder_id: null,
         sharing: 'private',
       });
@@ -142,14 +198,6 @@ export async function POST(request: Request) {
         console.error('Error parsing MCP tools:', error);
       }
     }
-
-    // Get unique server names from the selected tools
-    const selectedServers = new Set(
-      selectedMcpTools.map((toolName) => {
-        const parts = toolName.split('_');
-        return parts[0]; // Return the server name part
-      }),
-    );
 
     // Always enabled tools
     const alwaysEnabledCoreTools = [
@@ -203,40 +251,27 @@ export async function POST(request: Request) {
           ...mcpTools, // Add all available MCP tools
         };
 
-        // Filter valid selected tools that exist in our tools object
-        const validSelectedToolNames = (selectedTools ?? []).filter(
-          (toolName) => toolName in tools && !toolName.includes('_'), // Exclude MCP tools here
-        ) as (keyof typeof tools)[];
-
-        // Only include specifically selected MCP tools
-        const validMcpToolNames = selectedMcpTools.filter(
-          (toolName) => toolName in tools,
-        ) as (keyof typeof tools)[];
-
-        // Get core tools as properly typed
-        const coreTools = alwaysEnabledCoreTools.filter(
-          (toolName) => toolName in tools,
-        ) as (keyof typeof tools)[];
-
-        // Combine all tools with proper typing
-        const activeToolNames = [
-          ...coreTools,
-          ...validMcpToolNames,
-          ...validSelectedToolNames,
-        ];
+        const filteredTools = getFilteredTools(
+          tools,
+          supportsTools,
+          selectedTools ?? [],
+          selectedMcpTools,
+          alwaysEnabledCoreTools,
+        );
 
         const result = streamText({
-          model: selectedChatModel.startsWith('chat-')
-            ? myProvider.languageModel(selectedChatModel as any)
-            : getLanguageModel(selectedChatModel),
-          system: systemPrompt({ selectedChatModel }),
+          model: actualModelToUse.startsWith('chat-')
+            ? myProvider.languageModel(actualModelToUse as any)
+            : getLanguageModel(actualModelToUse),
+          system:
+            customSystemPrompt ||
+            systemPrompt({ selectedChatModel: actualModelToUse }),
           messages: convertToCoreMessages(messages),
-          maxSteps: 50,
-          experimental_activeTools: activeToolNames,
+          maxSteps: 5,
           experimental_transform: smoothStream({ chunking: 'word' }),
           experimental_generateMessageId: generateUUID,
-          tools: tools,
-          onFinish: async ({ response }) => {
+          tools: filteredTools,
+          onFinish: async ({ response, usage }) => {
             if (user.id) {
               try {
                 const assistantId = getTrailingMessageId({
@@ -273,6 +308,13 @@ export async function POST(request: Request) {
                     },
                   ],
                 });
+                await incrementDailyMessageCount({
+                  userId: user.id,
+                  model: actualModelToUse, // Track actual model usage for analytics
+                  workspaceId: user.current_workspace,
+                  inputTokenCount: usage.promptTokens,
+                  outputTokenCount: usage.completionTokens,
+                });
               } catch (_) {
                 console.error('Failed to save chat');
               }
@@ -290,9 +332,11 @@ export async function POST(request: Request) {
           sendReasoning: true,
         });
       },
-      onError: (error) => {
+      onError: (error: unknown) => {
         console.error(error);
-        return 'Oops, an error occured!';
+        return error instanceof Error
+          ? error.message
+          : 'Oops, an error occured!';
       },
     });
   } catch (error) {
