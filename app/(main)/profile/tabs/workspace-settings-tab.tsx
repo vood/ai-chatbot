@@ -22,7 +22,6 @@ type WorkspaceFormValues = z.infer<typeof workspaceFormSchema>;
 export default function WorkspaceSettingsTab() {
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [workspaceImage, setWorkspaceImage] = useState<string | undefined>();
 
   // Default values
@@ -106,43 +105,6 @@ export default function WorkspaceSettingsTab() {
     }
   }
 
-  async function handleDeleteWorkspace() {
-    if (
-      !confirm(
-        'Are you sure you want to delete this workspace? This action cannot be undone.',
-      )
-    ) {
-      return;
-    }
-
-    setIsDeleting(true);
-
-    try {
-      const response = await fetch('/api/workspace', {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete workspace');
-      }
-
-      toast.success('Workspace deleted', {
-        description: 'Your workspace has been deleted successfully.',
-      });
-
-      // Redirect to workspaces page after deletion
-      window.location.href = '/workspaces';
-    } catch (error) {
-      console.error('Error deleting workspace:', error);
-      toast.error('Failed to delete workspace', {
-        description:
-          'Please try again or contact support if the issue persists.',
-      });
-      setIsDeleting(false);
-    }
-  }
-
   if (isInitializing) {
     return (
       <div className="flex justify-center items-center h-[calc(100vh-200px)]">
@@ -216,33 +178,6 @@ export default function WorkspaceSettingsTab() {
             </Button>
           </form>
         </Form>
-      </div>
-
-      <div className="border-t pt-8">
-        <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-lg p-6">
-          <h3 className="text-xl font-medium text-red-500 dark:text-red-400 mb-2">
-            Danger Zone
-          </h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">
-            Once you delete a workspace, there is no going back. Please be
-            certain.
-          </p>
-          <Button
-            variant="destructive"
-            onClick={handleDeleteWorkspace}
-            disabled={isDeleting}
-            className="flex items-center gap-2"
-          >
-            {isDeleting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
-              </>
-            ) : (
-              'Delete Workspace'
-            )}
-          </Button>
-        </div>
       </div>
     </div>
   );

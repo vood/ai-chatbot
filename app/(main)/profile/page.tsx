@@ -49,7 +49,7 @@ export default function ProfilePage() {
               scroll={false}
               replace
             >
-              Profile Settings
+              Profile Settings (D)
             </Link>
             <Link
               href="?tab=models"
@@ -62,33 +62,7 @@ export default function ProfilePage() {
               scroll={false}
               replace
             >
-              Model Selection
-            </Link>
-            <Link
-              href="?tab=shortcuts"
-              className={`rounded-md px-3 py-2 text-sm font-medium ${
-                tab === 'shortcuts'
-                  ? 'bg-background'
-                  : 'text-muted-foreground hover:bg-background/50'
-              }`}
-              prefetch={false}
-              scroll={false}
-              replace
-            >
-              Shortcuts
-            </Link>
-            <Link
-              href="?tab=my-data"
-              className={`rounded-md px-3 py-2 text-sm font-medium ${
-                tab === 'my-data'
-                  ? 'bg-background'
-                  : 'text-muted-foreground hover:bg-background/50'
-              }`}
-              prefetch={false}
-              scroll={false}
-              replace
-            >
-              My Data
+              Model Selection (1)
             </Link>
             <Link
               href="?tab=workspace"
@@ -101,7 +75,7 @@ export default function ProfilePage() {
               scroll={false}
               replace
             >
-              Workspace Settings
+              Workspace Settings (1)
             </Link>
             <Link
               href="?tab=team"
@@ -114,7 +88,7 @@ export default function ProfilePage() {
               scroll={false}
               replace
             >
-              Team
+              Team (1)
             </Link>
             <Link
               href="?tab=billing"
@@ -127,20 +101,7 @@ export default function ProfilePage() {
               scroll={false}
               replace
             >
-              Billing and Plan
-            </Link>
-            <Link
-              href="?tab=apps"
-              className={`rounded-md px-3 py-2 text-sm font-medium ${
-                tab === 'apps'
-                  ? 'bg-background'
-                  : 'text-muted-foreground hover:bg-background/50'
-              }`}
-              prefetch={false}
-              scroll={false}
-              replace
-            >
-              Apps Settings
+              Billing and Plan (1)
             </Link>
             <Link
               href="?tab=api-keys"
@@ -153,7 +114,33 @@ export default function ProfilePage() {
               scroll={false}
               replace
             >
-              API Keys
+              API Keys (2)
+            </Link>
+            <Link
+              href="?tab=apps"
+              className={`rounded-md px-3 py-2 text-sm font-medium ${
+                tab === 'apps'
+                  ? 'bg-background'
+                  : 'text-muted-foreground hover:bg-background/50'
+              }`}
+              prefetch={false}
+              scroll={false}
+              replace
+            >
+              Apps Settings (2)
+            </Link>
+            <Link
+              href="?tab=my-data"
+              className={`rounded-md px-3 py-2 text-sm font-medium ${
+                tab === 'my-data'
+                  ? 'bg-background'
+                  : 'text-muted-foreground hover:bg-background/50'
+              }`}
+              prefetch={false}
+              scroll={false}
+              replace
+            >
+              My Data (2)
             </Link>
             <Link
               href="?tab=plugins"
@@ -166,7 +153,20 @@ export default function ProfilePage() {
               scroll={false}
               replace
             >
-              Plugins
+              Plugins (3)
+            </Link>
+            <Link
+              href="?tab=shortcuts"
+              className={`rounded-md px-3 py-2 text-sm font-medium ${
+                tab === 'shortcuts'
+                  ? 'bg-background'
+                  : 'text-muted-foreground hover:bg-background/50'
+              }`}
+              prefetch={false}
+              scroll={false}
+              replace
+            >
+              Shortcuts (3)
             </Link>
           </div>
         </nav>

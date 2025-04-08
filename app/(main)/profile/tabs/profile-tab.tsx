@@ -301,43 +301,6 @@ User info: "{profile_context}"
     }
   }
 
-  async function handleDeleteAccount() {
-    if (
-      !confirm(
-        'Are you sure you want to delete your account? This action cannot be undone.',
-      )
-    ) {
-      return;
-    }
-
-    setIsDeleting(true);
-
-    try {
-      const response = await fetch('/api/profile', {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete account');
-      }
-
-      toast.success('Account deleted', {
-        description: 'Your account has been permanently deleted.',
-      });
-
-      // Redirect to sign-in page after account deletion
-      window.location.href = '/signin';
-    } catch (error) {
-      console.error('Error deleting account:', error);
-      toast.error('Failed to delete account', {
-        description:
-          'Please try again or contact support if the issue persists.',
-      });
-      setIsDeleting(false);
-    }
-  }
-
   const profileContextLength = form.watch('profile_context')?.length || 0;
   const systemPromptLength = form.watch('system_prompt_template')?.length || 0;
 
@@ -504,37 +467,6 @@ User info: "{profile_context}"
           </Button>
         </form>
       </Form>
-
-      <Separator className="my-8" />
-
-      <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-lg p-6">
-        <h3 className="text-2xl font-semibold text-red-500 dark:text-red-400 mb-4">
-          Delete Account
-        </h3>
-        <p className="text-gray-600 dark:text-gray-400 mb-6">
-          This action will permanently delete your entire account, including all
-          associated data like profile settings, workspaces, chats, prompts,
-          files, and API keys. This action is irreversible.
-        </p>
-        <Button
-          variant="destructive"
-          onClick={handleDeleteAccount}
-          disabled={isDeleting}
-          className="flex items-center gap-2"
-        >
-          {isDeleting ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Deleting...
-            </>
-          ) : (
-            <>
-              <Trash2 className="h-4 w-4" />
-              Delete My Account Permanently
-            </>
-          )}
-        </Button>
-      </div>
     </div>
   );
 }
