@@ -49,7 +49,9 @@ export async function GET() {
           short_name: agent.name,
           description: agent.description || agent.prompt,
           created_at: agent.created_at,
-          context_length: agent.context_length || 4000,
+          context_length:
+            agent.context_length ||
+            modelMap[`agent/${agent.id}`]?.context_length,
           author: 'Agent',
           endpoint: {
             provider_info: {
@@ -65,7 +67,9 @@ export async function GET() {
             // fetch pricing from openrouter models
             pricing: modelMap[`agent/${agent.id}`]?.endpoint?.pricing,
             supports_tool_parameters: true,
-            context_length: agent.context_length || 4000,
+            context_length:
+              agent.context_length ||
+              modelMap[`agent/${agent.id}`]?.context_length,
           },
           is_agent: true,
         }));
