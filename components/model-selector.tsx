@@ -174,7 +174,7 @@ const ModelListItem = memo(
           <span className="flex h-5 w-5 items-center justify-center flex-shrink-0">
             {renderProviderIcon(model)}
           </span>
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-hidden flex gap-2">
             <span className="font-medium truncate block">
               {getCleanModelName(model)}
             </span>
@@ -194,18 +194,13 @@ const ModelListItem = memo(
                   Agent
                 </span>
               )}
-              {model.endpoint?.supports_tool_parameters && (
-                <CodeIcon size={10} />
-              )}
             </div>
           </div>
         </div>
 
-        {isSelected && (
-          <span className="ml-2 text-primary flex-shrink-0">
-            <CheckCircleFillIcon size={14} />
-          </span>
-        )}
+        <span className="ml-2 w-5 h-5 text-primary flex-shrink-0">
+          {isSelected && <CheckCircleFillIcon size={14} />}
+        </span>
       </CommandItem>
     );
   },

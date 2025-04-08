@@ -29,6 +29,14 @@ export async function GET() {
     const user = await auth();
     let agentModels: OpenRouterModel[] = [];
 
+    const modelMap = openRouterData.data.reduce(
+      (acc: Record<string, OpenRouterModel>, model: OpenRouterModel) => {
+        acc[model.slug] = model;
+        return acc;
+      },
+      {} as Record<string, OpenRouterModel>,
+    );
+
     if (user) {
       const workspaceId = user.current_workspace;
       if (workspaceId) {
@@ -54,10 +62,8 @@ export async function GET() {
             },
             provider_display_name: 'Agent',
             provider_name: 'custom_agent',
-            pricing: {
-              prompt: '0',
-              completion: '0',
-            },
+            // fetch pricing from openrouter models
+            pricing: modelMap[`agent/${agent.id}`]?.endpoint?.pricing,
             supports_tool_parameters: true,
             context_length: agent.context_length || 4000,
           },
