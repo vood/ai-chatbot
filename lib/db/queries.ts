@@ -24,6 +24,7 @@ import type {
   SigningLinkInsert,
   SigningLink,
 } from '@/lib/db/schema';
+import { JSONValue } from 'ai';
 
 // Define concrete types based on schema
 
@@ -233,12 +234,14 @@ export async function saveDocument({
   kind,
   content,
   userId,
+  metadata,
 }: {
   id: string;
   title: string;
   kind: ArtifactKind;
   content: string;
   userId: string;
+  metadata?: JSONValue;
 }) {
   const supabase = await createClient();
   const documentData: DocumentInsert = {
@@ -247,7 +250,7 @@ export async function saveDocument({
     kind,
     content,
     user_id: userId,
-    created_at: new Date().toISOString(),
+    metadata: metadata as JSONValue,
     // created_at handled by DB
   };
   try {
@@ -321,6 +324,7 @@ export async function deleteDocumentsByIdAfterTimestamp({
 }) {
   const supabase = await createClient();
   const isoTimestamp = timestamp.toISOString();
+  console.log({ id, timestamp, isoTimestamp });
   try {
     // First, delete related suggestions (assuming document_id is FK)
     // Original Drizzle code used documentcreated_at, mapped to document_created_at here

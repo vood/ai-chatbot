@@ -72,7 +72,7 @@ function detectRequiredHandlers(code: string): string[] {
 interface CodeArtifactMetadata {
   outputs: Array<ConsoleOutput>;
   previewContent?: string | null;
-  previewType?: 'html' | null;
+  language?: string | null;
 }
 
 const codeActions: Array<ArtifactAction<CodeArtifactMetadata>> = [
@@ -80,12 +80,15 @@ const codeActions: Array<ArtifactAction<CodeArtifactMetadata>> = [
     icon: <PlayIcon size={18} />,
     label: 'Run',
     description: 'Execute code',
-    isDisabled: ({ content }) => {
-      const isPython =
-        /\b(def|class|import|from|if|else|elif|while|for|try|except|lambda)\b/.test(
-          content,
-        );
-      return !isPython;
+    condition: (metadata) => metadata?.language === 'python',
+    isDisabled: ({ content, metadata }) => {
+      console.log('Checking if code is disabled', metadata);
+      // Empty/minimal content should default to enabled for Python
+      if (!content || content.trim().length < 10) {
+        return false;
+      }
+
+      return metadata?.language !== 'python';
     },
     onClick: async ({
       content,
@@ -109,10 +112,10 @@ const codeActions: Array<ArtifactAction<CodeArtifactMetadata>> = [
       try {
         // @ts-expect-error - loadPyodide is not defined
         const currentPyodideInstance = await globalThis.loadPyodide({
-          indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.23.4/full/',
+          indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.27.4/full/',
         });
 
-        currentPyodideInstance.setStdout({
+        currentPyodideInstance.setStdut({
           batched: (output: string) => {
             outputContent.push({
               type: output.startsWith('data:image/png;base64')
@@ -187,25 +190,29 @@ const codeActions: Array<ArtifactAction<CodeArtifactMetadata>> = [
     icon: <EyeIcon size={18} />,
     label: 'Preview',
     description: 'Preview HTML/CSS in browser',
-    condition: (metadata) => metadata?.previewType !== 'html',
+    condition: (metadata) =>
+      metadata?.language === 'html' && !metadata?.previewContent,
+    isDisabled: ({ content, metadata }) => {
+      // Empty/minimal content should default to disabled for Preview
+      if (!content || content.trim().length < 10) {
+        return true;
+      }
+
+      return metadata?.language !== 'html';
+    },
     onClick: async ({
       content,
       setMetadata,
       metadata,
     }: ArtifactActionContext<CodeArtifactMetadata>) => {
-      console.log('Preview button clicked (from editor view)');
-      const isHtmlCss =
-        /<html.*?>|<body.*?>|<!DOCTYPE\s+html>|<style.*?>/i.test(content);
-      if (isHtmlCss) {
-        console.log('HTML/CSS detected, attempting to set preview metadata');
+      if (metadata?.language === 'html') {
         setMetadata({
           ...metadata,
           previewContent: content,
-          previewType: 'html',
+          language: 'html',
           outputs: [],
         });
       } else {
-        console.log('Not HTML/CSS, showing error toast');
         toast.error('Preview is only available for HTML/CSS code.');
       }
     },
@@ -215,7 +222,8 @@ const codeActions: Array<ArtifactAction<CodeArtifactMetadata>> = [
     icon: <CodeIcon size={18} />,
     label: 'Code',
     description: 'View Code Editor',
-    condition: (metadata) => metadata?.previewType === 'html',
+    condition: (metadata) =>
+      metadata?.language === 'html' && !!metadata?.previewContent,
     onClick: async ({
       setMetadata,
       metadata,
@@ -224,7 +232,6 @@ const codeActions: Array<ArtifactAction<CodeArtifactMetadata>> = [
       setMetadata({
         ...metadata,
         previewContent: null,
-        previewType: null,
       });
     },
   },
@@ -271,11 +278,11 @@ export const codeArtifact = new Artifact<'code', CodeArtifactMetadata>({
   description:
     'Useful for code generation; Code execution is only available for python code.',
   initialize: async ({ setMetadata }) => {
-    setMetadata({
+    setMetadata((metadata: any) => ({
+      ...metadata,
       outputs: [],
       previewContent: null,
-      previewType: null,
-    });
+    }));
   },
   onStreamPart: ({ streamPart, setArtifact }) => {
     if (streamPart.type === 'code-delta') {
@@ -293,10 +300,8 @@ export const codeArtifact = new Artifact<'code', CodeArtifactMetadata>({
     }
   },
   content: ({ metadata, setMetadata, ...props }) => {
-    console.log('Rendering code artifact content. Metadata:', metadata);
-
     // Conditionally render Editor or Preview
-    if (metadata?.previewType === 'html' && metadata.previewContent) {
+    if (metadata?.language === 'html' && metadata.previewContent) {
       return (
         <CodePreview
           htmlContent={metadata.previewContent}
@@ -304,7 +309,7 @@ export const codeArtifact = new Artifact<'code', CodeArtifactMetadata>({
             setMetadata({
               ...metadata,
               previewContent: null,
-              previewType: null,
+              language: null,
             });
           }}
         />

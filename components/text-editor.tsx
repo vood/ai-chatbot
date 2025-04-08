@@ -4,8 +4,6 @@ import { exampleSetup } from 'prosemirror-example-setup';
 import { inputRules } from 'prosemirror-inputrules';
 import { EditorState } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
-import { GFMExtension } from 'prosemirror-remark';
-import { ProseMirrorUnified } from 'prosemirror-unified';
 import React, { memo, useEffect, useRef } from 'react';
 
 import type { ContractField, Suggestion } from '@/lib/db/schema';
@@ -14,7 +12,11 @@ import {
   handleTransaction,
   headingRule,
 } from '@/lib/editor/config';
-import { createDecorations } from '@/lib/editor/functions';
+import {
+  buildContentFromDocument,
+  buildDocumentFromContent,
+  createDecorations,
+} from '@/lib/editor/functions';
 import {
   projectWithPositions,
   suggestionsPlugin,
@@ -45,16 +47,12 @@ function PureEditor({
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<EditorView | null>(null);
 
-  const pmu = new ProseMirrorUnified([new GFMExtension()]);
-
   useEffect(() => {
     if (containerRef.current && !editorRef.current) {
       const state = EditorState.create({
-        doc: content ? pmu.parse(content) : pmu.parse(''),
+        doc: buildDocumentFromContent(content),
         plugins: [
-          pmu.inputRulesPlugin(),
-          pmu.keymapPlugin(),
-          ...exampleSetup({ schema: pmu.schema(), menuBar: false }),
+          ...exampleSetup({ schema: documentSchema, menuBar: false }),
           inputRules({
             rules: [
               headingRule(1),
@@ -68,7 +66,6 @@ function PureEditor({
           suggestionsPlugin,
           annotationsPlugin,
         ],
-        schema: pmu.schema(),
       });
 
       editorRef.current = new EditorView(containerRef.current, {
@@ -104,10 +101,12 @@ function PureEditor({
 
   useEffect(() => {
     if (editorRef.current && content) {
-      const currentContent = pmu.serialize(editorRef.current.state.doc);
+      const currentContent = buildContentFromDocument(
+        editorRef.current.state.doc,
+      );
 
       if (status === 'streaming') {
-        const newDocument = pmu.parse(content);
+        const newDocument = buildDocumentFromContent(content);
 
         const transaction = editorRef.current.state.tr.replaceWith(
           0,
@@ -121,7 +120,7 @@ function PureEditor({
       }
 
       if (currentContent !== content) {
-        const newDocument = pmu.parse(content);
+        const newDocument = buildDocumentFromContent(content);
 
         const transaction = editorRef.current.state.tr.replaceWith(
           0,

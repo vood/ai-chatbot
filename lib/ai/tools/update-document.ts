@@ -1,7 +1,10 @@
-import { type DataStreamWriter, tool } from 'ai';
+import { type DataStreamWriter, JSONValue, tool } from 'ai';
 import { z } from 'zod';
 import { getDocumentById } from '@/lib/db/queries';
-import { documentHandlersByArtifactKind } from '@/lib/artifacts/server';
+import {
+  artifactKinds,
+  documentHandlersByArtifactKind,
+} from '@/lib/artifacts/server';
 
 interface UpdateDocumentProps {
   user: { id?: string };
@@ -25,13 +28,45 @@ NEVER RUN updateDocument right after createDocument.
 
 Do not return the document in the conversation, it's already in the artifact and shown to the user.
     `,
-    parameters: z.object({
-      id: z.string().describe('The ID of the document to update'),
-      description: z
-        .string()
-        .describe('The description of changes that need to be made'),
-    }),
-    execute: async ({ id, description }) => {
+    parameters: z
+      .object({
+        id: z.string().describe('The ID of the document to update'),
+        description: z
+          .string()
+          .describe('The description of changes that need to be made'),
+        kind: z.enum(artifactKinds),
+        metadata: z.object({
+          language: z
+            .string()
+            .optional()
+            .describe(
+              'The programming language of the document. Only required when kind is "code". I.e. "python", "javascript", "typescript", "html", "css", "markdown", etc.',
+            ),
+        }),
+      })
+      .refine(
+        (data) => {
+          if (data.kind === 'code' && !data.metadata.language) {
+            return false;
+          }
+
+          return true;
+        },
+        (data) => {
+          if (data.kind === 'code' && !data.metadata.language) {
+            return {
+              message: 'Language is required when kind is "code"',
+              path: ['metadata', 'language'],
+            };
+          }
+
+          return {
+            message: 'Language should only be provided when kind is "code"',
+            path: ['metadata', 'language'],
+          };
+        },
+      ),
+    execute: async ({ id, description, metadata }) => {
       const document = await getDocumentById({ id });
 
       if (!document) {
@@ -44,6 +79,13 @@ Do not return the document in the conversation, it's already in the artifact and
         type: 'clear',
         content: document.title,
       });
+
+      if (metadata) {
+        dataStream.writeData({
+          type: 'metadata',
+          content: metadata as JSONValue,
+        });
+      }
 
       const documentHandler = documentHandlersByArtifactKind.find(
         (documentHandlerByArtifactKind) =>
@@ -59,6 +101,7 @@ Do not return the document in the conversation, it's already in the artifact and
         description,
         dataStream,
         user,
+        metadata,
       });
 
       dataStream.writeData({ type: 'finish', content: '' });

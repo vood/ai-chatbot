@@ -1,5 +1,4 @@
 import {
-  type UIMessage,
   appendResponseMessages,
   convertToCoreMessages,
   createDataStreamResponse,
@@ -165,6 +164,7 @@ export async function POST(request: Request) {
           'createDocument',
           'updateDocument',
           'requestSuggestions',
+          'requestContractFields',
         ];
         const activeToolNames =
           validSelectedToolNames.length > 0

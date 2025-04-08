@@ -60,10 +60,9 @@ export const VersionFooter = ({
               await fetch(`/api/document?id=${artifact.documentId}`, {
                 method: 'PATCH',
                 body: JSON.stringify({
-                  timestamp: getDocumentTimestampByIndex(
-                    documents,
-                    currentVersionIndex,
-                  ),
+                  timestamp: new Date(
+                    getDocumentTimestampByIndex(documents, currentVersionIndex),
+                  ).toISOString(),
                 }),
               }),
               {

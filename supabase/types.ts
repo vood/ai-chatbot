@@ -764,6 +764,95 @@ export type Database = {
           },
         ]
       }
+      contacts: {
+        Row: {
+          company: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      contract_fields: {
+        Row: {
+          contact_id: string
+          created_at: string | null
+          document_id: string
+          field_name: string
+          field_type: string
+          field_value: string | null
+          id: string
+          is_filled: boolean | null
+          is_required: boolean | null
+          placeholder_text: string
+          position_in_document: Json | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string | null
+          document_id: string
+          field_name: string
+          field_type: string
+          field_value?: string | null
+          id?: string
+          is_filled?: boolean | null
+          is_required?: boolean | null
+          placeholder_text: string
+          position_in_document?: Json | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string | null
+          document_id?: string
+          field_name?: string
+          field_type?: string
+          field_value?: string | null
+          id?: string
+          is_filled?: boolean | null
+          is_required?: boolean | null
+          placeholder_text?: string
+          position_in_document?: Json | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_contract_fields_contact_id"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daily_message_count: {
         Row: {
           count: number
@@ -809,15 +898,19 @@ export type Database = {
           created_at: string
           id: string
           kind: string | null
+          metadata: Json | null
           title: string
+          updated_at: string | null
           user_id: string
         }
         Insert: {
           content?: string | null
-          created_at: string
+          created_at?: string
           id?: string
           kind?: string | null
+          metadata?: Json | null
           title: string
+          updated_at?: string | null
           user_id: string
         }
         Update: {
@@ -825,7 +918,9 @@ export type Database = {
           created_at?: string
           id?: string
           kind?: string | null
+          metadata?: Json | null
           title?: string
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []
@@ -1640,6 +1735,50 @@ export type Database = {
           },
         ]
       }
+      signing_links: {
+        Row: {
+          contact_id: string
+          created_at: string | null
+          document_id: string
+          expires_at: string | null
+          id: string
+          status: string
+          token: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string | null
+          document_id: string
+          expires_at?: string | null
+          id?: string
+          status?: string
+          token?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string | null
+          document_id?: string
+          expires_at?: string | null
+          id?: string
+          status?: string
+          token?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signing_links_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subdomain_adjectives: {
         Row: {
           word: string
@@ -1674,10 +1813,11 @@ export type Database = {
           is_resolved: boolean
           original_text: string
           suggested_text: string
+          updated_at: string | null
           user_id: string
         }
         Insert: {
-          created_at: string
+          created_at?: string
           description?: string | null
           document_created_at: string
           document_id: string
@@ -1685,6 +1825,7 @@ export type Database = {
           is_resolved?: boolean
           original_text: string
           suggested_text: string
+          updated_at?: string | null
           user_id: string
         }
         Update: {
@@ -1696,6 +1837,7 @@ export type Database = {
           is_resolved?: boolean
           original_text?: string
           suggested_text?: string
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: [

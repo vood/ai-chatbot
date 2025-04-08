@@ -3,7 +3,7 @@ import { imageDocumentHandler } from '@/artifacts/image/server';
 import { sheetDocumentHandler } from '@/artifacts/sheet/server';
 import { textDocumentHandler } from '@/artifacts/text/server';
 import type { ArtifactKind } from '@/components/artifact';
-import type { DataStreamWriter } from 'ai';
+import type { DataStreamWriter, JSONValue } from 'ai';
 import { saveDocument } from '../db/queries';
 import type { Document } from '../db/schema';
 
@@ -20,6 +20,7 @@ export interface CreateDocumentCallbackProps {
   title: string;
   dataStream: DataStreamWriter;
   user: { id?: string };
+  metadata?: JSONValue;
 }
 
 export interface UpdateDocumentCallbackProps {
@@ -27,6 +28,7 @@ export interface UpdateDocumentCallbackProps {
   description: string;
   dataStream: DataStreamWriter;
   user: { id?: string };
+  metadata?: JSONValue;
 }
 
 export interface DocumentHandler<T = ArtifactKind> {
@@ -48,6 +50,7 @@ export function createDocumentHandler<T extends ArtifactKind>(config: {
         title: args.title,
         dataStream: args.dataStream,
         user: args.user,
+        metadata: args.metadata,
       });
 
       if (args.user?.id) {
@@ -57,6 +60,7 @@ export function createDocumentHandler<T extends ArtifactKind>(config: {
           content: draftContent,
           kind: config.kind,
           userId: args.user.id,
+          metadata: args.metadata,
         });
       }
 
@@ -68,6 +72,7 @@ export function createDocumentHandler<T extends ArtifactKind>(config: {
         description: args.description,
         dataStream: args.dataStream,
         user: args.user,
+        metadata: args.metadata,
       });
 
       if (args.user?.id) {
@@ -77,6 +82,7 @@ export function createDocumentHandler<T extends ArtifactKind>(config: {
           content: draftContent,
           kind: config.kind,
           userId: args.user.id,
+          metadata: args.metadata,
         });
       }
 

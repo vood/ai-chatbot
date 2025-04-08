@@ -238,6 +238,11 @@ function PureArtifact({
           ...currentArtifact,
           content: mostRecentDocument.content ?? '',
         }));
+        console.log('Setting metadata', mostRecentDocument.metadata);
+        setMetadata((currentMetadata: any) => ({
+          ...currentMetadata,
+          ...((mostRecentDocument.metadata as object) || {}),
+        }));
       }
     }
   }, [documents, setArtifact]);

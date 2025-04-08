@@ -143,9 +143,11 @@ export function getDocumentTimestampByIndex(
   documents: Array<Document>,
   index: number,
 ) {
+  console.log({ documents, index });
   if (!documents) return new Date();
   if (index > documents.length) return new Date();
 
+  console.log({ document: documents[index] });
   return documents[index].created_at;
 }
 
