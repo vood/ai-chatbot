@@ -14,6 +14,9 @@ import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ChevronDown } from 'lucide-react';
 
 const workspaceFormSchema = z.object({
   name: z.string().min(1, {
@@ -23,6 +26,8 @@ const workspaceFormSchema = z.object({
   default_model: z.string().optional(),
   default_prompt: z.string().optional(),
   default_temperature: z.number().min(0).max(2).optional(),
+  google_analytics_id: z.string().optional(),
+  disable_banner: z.boolean(),
 });
 
 type WorkspaceFormValues = z.infer<typeof workspaceFormSchema>;
@@ -75,6 +80,8 @@ export default function WorkspaceSettingsTab() {
     default_model: '',
     default_prompt: '',
     default_temperature: 0.7,
+    google_analytics_id: '',
+    disable_banner: false,
   };
 
   const workspaceForm = useForm<WorkspaceFormValues>({
@@ -109,6 +116,8 @@ export default function WorkspaceSettingsTab() {
           default_model: workspaceData.default_model || defaultValues.default_model,
           default_prompt: workspaceData.default_prompt || defaultValues.default_prompt,
           default_temperature: workspaceData.default_temperature || defaultValues.default_temperature,
+          google_analytics_id: workspaceData.google_analytics_id || defaultValues.google_analytics_id,
+          disable_banner: workspaceData.disable_banner || defaultValues.disable_banner,
         });
 
         // Set workspace image if it exists
@@ -156,8 +165,8 @@ export default function WorkspaceSettingsTab() {
 
   async function onWorkspaceSubmit(data: WorkspaceFormValues) {
     setIsLoading(true);
-
     try {
+      console.log('Submitting workspace data:', data);
       const response = await fetch('/api/workspace', {
         method: 'POST',
         headers: {
@@ -170,18 +179,16 @@ export default function WorkspaceSettingsTab() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update workspace');
+        throw new Error('Failed to save workspace data');
       }
 
-      toast.success('Workspace updated', {
-        description: 'Your workspace settings have been updated successfully.',
+      toast.success('Workspace settings saved', {
+        description: 'Your workspace settings have been saved successfully.',
       });
     } catch (error) {
-      console.error('Error saving workspace:', error);
-      toast.error('Failed to update workspace', {
-        description:
-          'Please try again or contact support if the issue persists.',
+      console.error('Error saving workspace data:', error);
+      toast.error('Failed to save workspace settings', {
+        description: 'Please try again or contact support if the issue persists.',
       });
     } finally {
       setIsLoading(false);
@@ -458,6 +465,58 @@ export default function WorkspaceSettingsTab() {
                 </FormItem>
               )}
             />
+            <Collapsible defaultOpen={false}>
+              <CollapsibleTrigger className="flex items-center justify-between w-full hover:bg-muted/50 p-2 rounded-md transition-colors">
+                <div className="space-y-0.5">
+                  <h3 className="text-lg font-medium">Advanced Settings</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Configure additional workspace settings.
+                  </p>
+                </div>
+                <ChevronDown className="h-5 w-5 text-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-6 pt-6">
+                <FormField
+                  control={workspaceForm.control}
+                  name="google_analytics_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Google Analytics Measurement ID</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="G-XXXXXXXXXX"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        This ID will be used to track visitors to your shared content in addition to our analytics.
+                      </FormDescription>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={workspaceForm.control}
+                  name="disable_banner"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">Disable "Built with ChatLabs" Banner</FormLabel>
+                        <FormDescription>
+                          Banner enabled
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </CollapsibleContent>
+            </Collapsible>
             <Button type="submit" disabled={isLoading}>
               {isLoading ? (
                 <>

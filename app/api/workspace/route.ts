@@ -17,6 +17,7 @@ export async function POST(req: NextRequest) {
 
     const supabase = await createClient();
     const data = await req.json();
+    console.log('Received workspace data:', data);
 
     // Check if user has access to this workspace
     const { data: workspace, error: workspaceError } = await supabase
@@ -41,6 +42,8 @@ export async function POST(req: NextRequest) {
         default_model: data.default_model,
         default_prompt: data.default_prompt,
         default_temperature: data.default_temperature,
+        google_analytics_id: data.google_analytics_id,
+        disable_banner: data.disable_banner,
       })
       .eq('id', workspaceId);
 
@@ -79,7 +82,9 @@ export async function GET() {
         default_context_length,
         default_model,
         default_prompt,
-        default_temperature
+        default_temperature,
+        google_analytics_id,
+        disable_banner
       `)
       .eq('id', workspaceId)
       .single();
