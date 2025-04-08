@@ -32,21 +32,9 @@ import { Loader2 } from 'lucide-react';
 
 // Schema that matches both profiles and workspaces API key fields
 const apiKeysFormSchema = z.object({
-  openai_api_key: z.string().optional(),
-  openai_organization_id: z.string().optional(),
-  use_azure_openai: z.boolean(),
-  azure_openai_api_key: z.string().optional(),
-  azure_openai_endpoint: z.string().optional(),
-  azure_openai_35_turbo_id: z.string().optional(),
-  azure_openai_45_turbo_id: z.string().optional(),
-  azure_openai_45_vision_id: z.string().optional(),
-  azure_openai_embeddings_id: z.string().optional(),
-  anthropic_api_key: z.string().optional(),
-  google_gemini_api_key: z.string().optional(),
-  mistral_api_key: z.string().optional(),
-  groq_api_key: z.string().optional(),
-  perplexity_api_key: z.string().optional(),
-  openrouter_api_key: z.string().optional(),
+  openai_api_key: z.string().nullable().optional(),
+  openai_organization_id: z.string().nullable().optional(),
+  openrouter_api_key: z.string().nullable().optional(),
 });
 
 type ApiKeysFormValues = z.infer<typeof apiKeysFormSchema>;
@@ -54,27 +42,13 @@ type ApiKeysFormValues = z.infer<typeof apiKeysFormSchema>;
 export default function ApiKeysTab() {
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
-  const [keyScope, setKeyScope] = useState<'profile' | 'workspace'>(
-    'workspace',
-  );
+  const [keyScope, setKeyScope] = useState<'profile' | 'workspace'>('workspace');
 
   // Default values matching the schema
   const defaultValues = {
-    openai_api_key: '',
-    openai_organization_id: '',
-    use_azure_openai: false,
-    azure_openai_api_key: '',
-    azure_openai_endpoint: '',
-    azure_openai_35_turbo_id: '',
-    azure_openai_45_turbo_id: '',
-    azure_openai_45_vision_id: '',
-    azure_openai_embeddings_id: '',
-    anthropic_api_key: '',
-    google_gemini_api_key: '',
-    mistral_api_key: '',
-    groq_api_key: '',
-    perplexity_api_key: '',
-    openrouter_api_key: '',
+    openai_api_key: null,
+    openai_organization_id: null,
+    openrouter_api_key: null,
   };
 
   const form = useForm<ApiKeysFormValues>({
@@ -130,12 +104,19 @@ export default function ApiKeysTab() {
           ? '/api/settings/profile'
           : '/api/settings/workspace';
 
+      // Convert empty strings to null
+      const processedValues = {
+        openai_api_key: values.openai_api_key || null,
+        openai_organization_id: values.openai_organization_id || null,
+        openrouter_api_key: values.openrouter_api_key || null,
+      };
+
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(values),
+        body: JSON.stringify(processedValues),
       });
 
       if (!response.ok) {
@@ -165,9 +146,9 @@ export default function ApiKeysTab() {
       <CardHeader>
         <div className="flex justify-between items-center">
           <div>
-            <CardTitle>API Keys</CardTitle>
+            <CardTitle>Bring Your Own API Keys</CardTitle>
             <CardDescription>
-              Configure your API keys for various AI services.
+              Configure your API keys for OpenAI and OpenRouter services.
             </CardDescription>
           </div>
           <div
@@ -246,361 +227,81 @@ export default function ApiKeysTab() {
             </div>
 
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-              <Accordion type="single" collapsible className="w-full">
-                <AccordionItem value="openai">
-                  <AccordionTrigger className="text-lg font-medium">
-                    OpenAI
-                  </AccordionTrigger>
-                  <AccordionContent className="space-y-4 pt-4">
-                    <div className="space-y-2">
-                      <label
-                        className="text-sm font-medium"
-                        htmlFor="openai_api_key"
-                      >
-                        OpenAI API Key
-                      </label>
-                      <Input
-                        id="openai_api_key"
-                        type="password"
-                        placeholder="sk-..."
-                        {...form.register('openai_api_key')}
-                      />
-                      <p className="text-sm text-muted-foreground">
-                        Your OpenAI API key for accessing GPT models.
+              <div className="space-y-6">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">OpenAI</h3>
+                  <div className="space-y-2">
+                    <label
+                      className="text-sm font-medium"
+                      htmlFor="openai_api_key"
+                    >
+                      OpenAI API Key
+                    </label>
+                    <Input
+                      id="openai_api_key"
+                      type="password"
+                      placeholder="sk-..."
+                      {...form.register('openai_api_key')}
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Your OpenAI API key for accessing GPT models.
+                    </p>
+                    {form.formState.errors.openai_api_key && (
+                      <p className="text-sm text-red-500">
+                        {form.formState.errors.openai_api_key.message}
                       </p>
-                      {form.formState.errors.openai_api_key && (
-                        <p className="text-sm text-red-500">
-                          {form.formState.errors.openai_api_key.message}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <label
-                        className="text-sm font-medium"
-                        htmlFor="openai_organization_id"
-                      >
-                        OpenAI Organization ID
-                      </label>
-                      <Input
-                        id="openai_organization_id"
-                        placeholder="org-..."
-                        {...form.register('openai_organization_id')}
-                      />
-                      <p className="text-sm text-muted-foreground">
-                        Optional: Your OpenAI organization ID.
-                      </p>
-                      {form.formState.errors.openai_organization_id && (
-                        <p className="text-sm text-red-500">
-                          {form.formState.errors.openai_organization_id.message}
-                        </p>
-                      )}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-
-                <AccordionItem value="azure">
-                  <AccordionTrigger className="text-lg font-medium">
-                    Azure OpenAI
-                  </AccordionTrigger>
-                  <AccordionContent className="space-y-4 pt-4">
-                    <div className="flex flex-row items-center justify-between rounded-lg border p-4">
-                      <div className="space-y-0.5">
-                        <label
-                          className="text-base font-medium"
-                          htmlFor="use_azure_openai"
-                        >
-                          Use Azure OpenAI
-                        </label>
-                        <p className="text-sm text-muted-foreground">
-                          Enable to use Azure OpenAI services instead of direct
-                          OpenAI.
-                        </p>
-                      </div>
-                      <Switch
-                        checked={form.watch('use_azure_openai')}
-                        onCheckedChange={(checked) =>
-                          form.setValue('use_azure_openai', checked)
-                        }
-                      />
-                    </div>
-
-                    {form.watch('use_azure_openai') && (
-                      <>
-                        <div className="space-y-2">
-                          <label
-                            className="text-sm font-medium"
-                            htmlFor="azure_openai_api_key"
-                          >
-                            Azure OpenAI API Key
-                          </label>
-                          <Input
-                            id="azure_openai_api_key"
-                            type="password"
-                            placeholder="Your Azure OpenAI API key"
-                            {...form.register('azure_openai_api_key')}
-                          />
-                          {form.formState.errors.azure_openai_api_key && (
-                            <p className="text-sm text-red-500">
-                              {
-                                form.formState.errors.azure_openai_api_key
-                                  .message
-                              }
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="space-y-2">
-                          <label
-                            className="text-sm font-medium"
-                            htmlFor="azure_openai_endpoint"
-                          >
-                            Azure OpenAI Endpoint
-                          </label>
-                          <Input
-                            id="azure_openai_endpoint"
-                            placeholder="https://your-resource.openai.azure.com"
-                            {...form.register('azure_openai_endpoint')}
-                          />
-                          {form.formState.errors.azure_openai_endpoint && (
-                            <p className="text-sm text-red-500">
-                              {
-                                form.formState.errors.azure_openai_endpoint
-                                  .message
-                              }
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="space-y-2">
-                          <label
-                            className="text-sm font-medium"
-                            htmlFor="azure_openai_35_turbo_id"
-                          >
-                            Azure OpenAI 3.5 Turbo ID
-                          </label>
-                          <Input
-                            id="azure_openai_35_turbo_id"
-                            placeholder="gpt-35-turbo"
-                            {...form.register('azure_openai_35_turbo_id')}
-                          />
-                          {form.formState.errors.azure_openai_35_turbo_id && (
-                            <p className="text-sm text-red-500">
-                              {
-                                form.formState.errors.azure_openai_35_turbo_id
-                                  .message
-                              }
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="space-y-2">
-                          <label
-                            className="text-sm font-medium"
-                            htmlFor="azure_openai_45_turbo_id"
-                          >
-                            Azure OpenAI 4.5 Turbo ID
-                          </label>
-                          <Input
-                            id="azure_openai_45_turbo_id"
-                            placeholder="gpt-45-turbo"
-                            {...form.register('azure_openai_45_turbo_id')}
-                          />
-                          {form.formState.errors.azure_openai_45_turbo_id && (
-                            <p className="text-sm text-red-500">
-                              {
-                                form.formState.errors.azure_openai_45_turbo_id
-                                  .message
-                              }
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="space-y-2">
-                          <label
-                            className="text-sm font-medium"
-                            htmlFor="azure_openai_45_vision_id"
-                          >
-                            Azure OpenAI 4.5 Vision ID
-                          </label>
-                          <Input
-                            id="azure_openai_45_vision_id"
-                            placeholder="gpt-45-vision"
-                            {...form.register('azure_openai_45_vision_id')}
-                          />
-                          {form.formState.errors.azure_openai_45_vision_id && (
-                            <p className="text-sm text-red-500">
-                              {
-                                form.formState.errors.azure_openai_45_vision_id
-                                  .message
-                              }
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="space-y-2">
-                          <label
-                            className="text-sm font-medium"
-                            htmlFor="azure_openai_embeddings_id"
-                          >
-                            Azure OpenAI Embeddings ID
-                          </label>
-                          <Input
-                            id="azure_openai_embeddings_id"
-                            placeholder="text-embedding-ada-002"
-                            {...form.register('azure_openai_embeddings_id')}
-                          />
-                          {form.formState.errors.azure_openai_embeddings_id && (
-                            <p className="text-sm text-red-500">
-                              {
-                                form.formState.errors.azure_openai_embeddings_id
-                                  .message
-                              }
-                            </p>
-                          )}
-                        </div>
-                      </>
                     )}
-                  </AccordionContent>
-                </AccordionItem>
+                  </div>
 
-                <AccordionItem value="anthropic">
-                  <AccordionTrigger className="text-lg font-medium">
-                    Anthropic
-                  </AccordionTrigger>
-                  <AccordionContent className="space-y-4 pt-4">
-                    <div className="space-y-2">
-                      <label
-                        className="text-sm font-medium"
-                        htmlFor="anthropic_api_key"
-                      >
-                        Anthropic API Key
-                      </label>
-                      <Input
-                        id="anthropic_api_key"
-                        type="password"
-                        placeholder="sk-ant-..."
-                        {...form.register('anthropic_api_key')}
-                      />
-                      <p className="text-sm text-muted-foreground">
-                        Your Anthropic API key for accessing Claude models.
+                  <div className="space-y-2">
+                    <label
+                      className="text-sm font-medium"
+                      htmlFor="openai_organization_id"
+                    >
+                      OpenAI Organization ID
+                    </label>
+                    <Input
+                      id="openai_organization_id"
+                      placeholder="org-..."
+                      {...form.register('openai_organization_id')}
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Optional: Your OpenAI organization ID.
+                    </p>
+                    {form.formState.errors.openai_organization_id && (
+                      <p className="text-sm text-red-500">
+                        {form.formState.errors.openai_organization_id.message}
                       </p>
-                      {form.formState.errors.anthropic_api_key && (
-                        <p className="text-sm text-red-500">
-                          {form.formState.errors.anthropic_api_key.message}
-                        </p>
-                      )}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
+                    )}
+                  </div>
+                </div>
 
-                <AccordionItem value="other-providers">
-                  <AccordionTrigger className="text-lg font-medium">
-                    Other Providers
-                  </AccordionTrigger>
-                  <AccordionContent className="space-y-4 pt-4">
-                    <div className="space-y-2">
-                      <label
-                        className="text-sm font-medium"
-                        htmlFor="google_gemini_api_key"
-                      >
-                        Google Gemini API Key
-                      </label>
-                      <Input
-                        id="google_gemini_api_key"
-                        type="password"
-                        placeholder="Your Google Gemini API key"
-                        {...form.register('google_gemini_api_key')}
-                      />
-                      {form.formState.errors.google_gemini_api_key && (
-                        <p className="text-sm text-red-500">
-                          {form.formState.errors.google_gemini_api_key.message}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <label
-                        className="text-sm font-medium"
-                        htmlFor="mistral_api_key"
-                      >
-                        Mistral API Key
-                      </label>
-                      <Input
-                        id="mistral_api_key"
-                        type="password"
-                        placeholder="Your Mistral API key"
-                        {...form.register('mistral_api_key')}
-                      />
-                      {form.formState.errors.mistral_api_key && (
-                        <p className="text-sm text-red-500">
-                          {form.formState.errors.mistral_api_key.message}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <label
-                        className="text-sm font-medium"
-                        htmlFor="groq_api_key"
-                      >
-                        Groq API Key
-                      </label>
-                      <Input
-                        id="groq_api_key"
-                        type="password"
-                        placeholder="Your Groq API key"
-                        {...form.register('groq_api_key')}
-                      />
-                      {form.formState.errors.groq_api_key && (
-                        <p className="text-sm text-red-500">
-                          {form.formState.errors.groq_api_key.message}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <label
-                        className="text-sm font-medium"
-                        htmlFor="perplexity_api_key"
-                      >
-                        Perplexity API Key
-                      </label>
-                      <Input
-                        id="perplexity_api_key"
-                        type="password"
-                        placeholder="Your Perplexity API key"
-                        {...form.register('perplexity_api_key')}
-                      />
-                      {form.formState.errors.perplexity_api_key && (
-                        <p className="text-sm text-red-500">
-                          {form.formState.errors.perplexity_api_key.message}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <label
-                        className="text-sm font-medium"
-                        htmlFor="openrouter_api_key"
-                      >
-                        OpenRouter API Key
-                      </label>
-                      <Input
-                        id="openrouter_api_key"
-                        type="password"
-                        placeholder="Your OpenRouter API key"
-                        {...form.register('openrouter_api_key')}
-                      />
-                      {form.formState.errors.openrouter_api_key && (
-                        <p className="text-sm text-red-500">
-                          {form.formState.errors.openrouter_api_key.message}
-                        </p>
-                      )}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">OpenRouter</h3>
+                  <div className="space-y-2">
+                    <label
+                      className="text-sm font-medium"
+                      htmlFor="openrouter_api_key"
+                    >
+                      OpenRouter API Key
+                    </label>
+                    <Input
+                      id="openrouter_api_key"
+                      type="password"
+                      placeholder="Your OpenRouter API key"
+                      {...form.register('openrouter_api_key')}
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Your OpenRouter API key for accessing multiple AI models.
+                    </p>
+                    {form.formState.errors.openrouter_api_key && (
+                      <p className="text-sm text-red-500">
+                        {form.formState.errors.openrouter_api_key.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
 
               <Button
                 type="submit"

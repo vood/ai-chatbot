@@ -37,6 +37,10 @@ export async function POST(req: NextRequest) {
         // Add workspace fields directly
         name: data.name,
         image_path: data.image_path,
+        default_context_length: data.default_context_length,
+        default_model: data.default_model,
+        default_prompt: data.default_prompt,
+        default_temperature: data.default_temperature,
       })
       .eq('id', workspaceId);
 
@@ -71,7 +75,11 @@ export async function GET() {
       .from('workspaces')
       .select(`
         name,
-        image_path
+        image_path,
+        default_context_length,
+        default_model,
+        default_prompt,
+        default_temperature
       `)
       .eq('id', workspaceId)
       .single();

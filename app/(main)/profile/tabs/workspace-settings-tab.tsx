@@ -12,11 +12,17 @@ import { AvatarUpload } from '@/components/avatar-upload';
 import { Loader2, Trash2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
+import { Textarea } from '@/components/ui/textarea';
 
 const workspaceFormSchema = z.object({
   name: z.string().min(1, {
     message: 'Workspace name is required.',
   }),
+  default_context_length: z.number().min(1).max(100000).optional(),
+  default_model: z.string().optional(),
+  default_prompt: z.string().optional(),
+  default_temperature: z.number().min(0).max(2).optional(),
 });
 
 type WorkspaceFormValues = z.infer<typeof workspaceFormSchema>;
@@ -35,6 +41,12 @@ interface TeamMember {
   status: "ACTIVE" | "PENDING" | "INVITED";
 }
 
+interface OpenRouterModel {
+  slug: string;
+  short_name?: string;
+  endpoint?: string;
+}
+
 export default function WorkspaceSettingsTab() {
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
@@ -43,6 +55,10 @@ export default function WorkspaceSettingsTab() {
   // Team state
   const [isInviting, setIsInviting] = useState(false);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+
+  // Add state for models
+  const [models, setModels] = useState<OpenRouterModel[]>([]);
+  const [isLoadingModels, setIsLoadingModels] = useState(true);
 
   const inviteForm = useForm<InviteFormValues>({
     resolver: zodResolver(inviteFormSchema),
@@ -55,6 +71,10 @@ export default function WorkspaceSettingsTab() {
   // Default values for workspace form
   const defaultValues: WorkspaceFormValues = {
     name: '',
+    default_context_length: 4000,
+    default_model: '',
+    default_prompt: '',
+    default_temperature: 0.7,
   };
 
   const workspaceForm = useForm<WorkspaceFormValues>({
@@ -85,6 +105,10 @@ export default function WorkspaceSettingsTab() {
         // Reset the form with the loaded values, falling back to defaults if needed
         workspaceForm.reset({
           name: workspaceData.name || defaultValues.name,
+          default_context_length: workspaceData.default_context_length || defaultValues.default_context_length,
+          default_model: workspaceData.default_model || defaultValues.default_model,
+          default_prompt: workspaceData.default_prompt || defaultValues.default_prompt,
+          default_temperature: workspaceData.default_temperature || defaultValues.default_temperature,
         });
 
         // Set workspace image if it exists
@@ -107,6 +131,28 @@ export default function WorkspaceSettingsTab() {
 
     loadWorkspace();
   }, [workspaceForm]);
+
+  // Fetch available models
+  useEffect(() => {
+    async function fetchModels() {
+      setIsLoadingModels(true);
+      try {
+        const response = await fetch('/api/models');
+        if (!response.ok) throw new Error('Failed to fetch models');
+        const data = await response.json();
+        // Filter out models without an endpoint as they can't be used for chat
+        const validModels = data.data.filter((m: OpenRouterModel) => m.endpoint);
+        setModels(validModels);
+      } catch (error) {
+        console.error('Error fetching models:', error);
+        toast.error('Failed to load available models.');
+        setModels([]);
+      } finally {
+        setIsLoadingModels(false);
+      }
+    }
+    fetchModels();
+  }, []);
 
   async function onWorkspaceSubmit(data: WorkspaceFormValues) {
     setIsLoading(true);
@@ -311,6 +357,103 @@ export default function WorkspaceSettingsTab() {
                   </FormControl>
                   <FormDescription className="mt-2">
                     This name will be visible to all team members and in shared content.
+                  </FormDescription>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={workspaceForm.control}
+              name="default_context_length"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Default Context Length</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={100000}
+                      {...field}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    The default maximum number of tokens to use for context.
+                  </FormDescription>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={workspaceForm.control}
+              name="default_model"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Default Model</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                    disabled={isLoadingModels}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a default model" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {models.map((model) => (
+                        <SelectItem key={model.slug} value={model.slug}>
+                          {model.short_name || model.slug.split('/')[1] || model.slug}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    The default model to use for new conversations.
+                  </FormDescription>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={workspaceForm.control}
+              name="default_prompt"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Default Prompt</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Enter a default prompt"
+                      className="min-h-[100px]"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    The default prompt to use for new conversations.
+                  </FormDescription>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={workspaceForm.control}
+              name="default_temperature"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Default Temperature</FormLabel>
+                  <FormControl>
+                    <div className="flex items-center gap-4">
+                      <Slider
+                        min={0}
+                        max={2}
+                        step={0.1}
+                        value={[field.value || 0.7]}
+                        onValueChange={(value) => field.onChange(value[0])}
+                        className="flex-1"
+                      />
+                      <span className="w-12 text-sm text-muted-foreground">
+                        {field.value?.toFixed(1) || '0.7'}
+                      </span>
+                    </div>
+                  </FormControl>
+                  <FormDescription>
+                    Controls randomness in the model's responses. Higher values make the output more random.
                   </FormDescription>
                 </FormItem>
               )}

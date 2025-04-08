@@ -13,6 +13,7 @@ import ApiKeysTab from './tabs/api-keys-tab';
 import PluginsTab from './tabs/plugins-tab';
 import ModelsTab from './tabs/models-tab';
 import { SidebarToggle } from '@/components/sidebar-toggle';
+import { Separator } from '@/components/ui/separator';
 
 // Metadata can't be used in client components, so we'll need to move this
 // to a separate layout file if needed
@@ -74,7 +75,7 @@ export default function ProfilePage() {
               scroll={false}
               replace
             >
-              Workspace Access and Settings (1)
+              Workspace Settings & Access (1)
             </Link>
             <Link
               href="?tab=billing"
@@ -115,6 +116,7 @@ export default function ProfilePage() {
             >
               Apps Settings (2)
             </Link>
+            <Separator className="my-2" />
             <Link
               href="?tab=my-data"
               className={`rounded-md px-3 py-2 text-sm font-medium ${
@@ -126,7 +128,7 @@ export default function ProfilePage() {
               scroll={false}
               replace
             >
-              My Data (2)
+              Delete Account or Data (2)
             </Link>
             <Link
               href="?tab=plugins"
