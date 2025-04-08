@@ -32,7 +32,7 @@ type InviteFormValues = z.infer<typeof inviteFormSchema>;
 interface TeamMember {
   email: string;
   role: "Owner" | "Member";
-  status: "ACTIVE" | "PENDING";
+  status: "ACTIVE" | "PENDING" | "INVITED";
 }
 
 export default function WorkspaceSettingsTab() {
@@ -42,11 +42,7 @@ export default function WorkspaceSettingsTab() {
   
   // Team state
   const [isInviting, setIsInviting] = useState(false);
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([
-    { email: "artem.vysotsky@gmail.com", role: "Owner", status: "ACTIVE" },
-    { email: "hello@writingmate.ai", role: "Member", status: "ACTIVE" },
-    { email: "sergey.visotsky.work@gmail.com", role: "Member", status: "ACTIVE" },
-  ]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
 
   const inviteForm = useForm<InviteFormValues>({
     resolver: zodResolver(inviteFormSchema),
@@ -67,28 +63,37 @@ export default function WorkspaceSettingsTab() {
     mode: 'onChange',
   });
 
-  // Load workspace data when component mounts
+  // Load workspace data and members when component mounts
   useEffect(() => {
     const loadWorkspace = async () => {
       setIsInitializing(true);
       try {
-        const response = await fetch('/api/workspace');
-
-        if (!response.ok) {
+        // Load workspace data
+        const workspaceResponse = await fetch('/api/workspace');
+        if (!workspaceResponse.ok) {
           throw new Error('Failed to load workspace data');
         }
+        const workspaceData = await workspaceResponse.json();
 
-        const data = await response.json();
+        // Load workspace members
+        const membersResponse = await fetch('/api/workspace/members');
+        if (!membersResponse.ok) {
+          throw new Error('Failed to load workspace members');
+        }
+        const membersData = await membersResponse.json();
 
         // Reset the form with the loaded values, falling back to defaults if needed
         workspaceForm.reset({
-          name: data.name || defaultValues.name,
+          name: workspaceData.name || defaultValues.name,
         });
 
         // Set workspace image if it exists
-        if (data.image_path) {
-          setWorkspaceImage(data.image_path);
+        if (workspaceData.image_path) {
+          setWorkspaceImage(workspaceData.image_path);
         }
+
+        // Set team members
+        setTeamMembers(membersData);
       } catch (error) {
         console.error('Error loading workspace data:', error);
         toast.error('Failed to load workspace data', {
@@ -137,36 +142,80 @@ export default function WorkspaceSettingsTab() {
     }
   }
 
-  function onInviteSubmit(data: InviteFormValues) {
+  async function onInviteSubmit(data: InviteFormValues) {
     setIsInviting(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      console.log(data);
-      setIsInviting(false);
-      inviteForm.reset();
-      // Add the user as pending
-      setTeamMembers([
-        ...teamMembers,
-        { email: data.email, role: "Member", status: "PENDING" }
-      ]);
+    try {
+      const response = await fetch('/api/workspace/members/invite', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: data.email,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to send invitation');
+      }
+
+      const newMember = await response.json();
+      
+      // Add the new member to the list
+      setTeamMembers((prevMembers) => [...prevMembers, newMember]);
+      
       toast.success("Invitation sent", {
         description: `An invitation has been sent to ${data.email}.`,
       });
-    }, 1000);
+      
+      // Reset the form
+      inviteForm.reset();
+    } catch (error) {
+      console.error('Error sending invitation:', error);
+      toast.error('Failed to send invitation', {
+        description: 'Please try again or contact support if the issue persists.',
+      });
+    } finally {
+      setIsInviting(false);
+    }
   }
 
-  function handleRoleChange(email: string, newRole: "Owner" | "Member") {
-    setTeamMembers((members) =>
-      members.map((member) => (member.email === email ? { ...member, role: newRole } : member)),
-    );
-    
-    toast.success("Role updated", {
-      description: `${email}'s role has been updated to ${newRole}.`,
-    });
+  async function handleRoleChange(email: string, newRole: "Owner" | "Member") {
+    try {
+      const response = await fetch('/api/workspace/members/role', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          role: newRole,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update role');
+      }
+
+      setTeamMembers((members) =>
+        members.map((member) => (member.email === email ? { ...member, role: newRole } : member)),
+      );
+      
+      toast.success("Role updated", {
+        description: `${email}'s role has been updated to ${newRole}.`,
+      });
+    } catch (error) {
+      console.error('Error updating role:', error);
+      toast.error('Failed to update role', {
+        description: 'Please try again or contact support if the issue persists.',
+      });
+    }
   }
 
-  function handleRemoveMember(email: string) {
+  async function handleRemoveMember(email: string) {
     if (email === "artem.vysotsky@gmail.com") {
       toast.error("Cannot remove owner", {
         description: "You cannot remove the workspace owner.",
@@ -174,10 +223,32 @@ export default function WorkspaceSettingsTab() {
       return;
     }
 
-    setTeamMembers((members) => members.filter((member) => member.email !== email));
-    toast.success("Team member removed", {
-      description: `${email} has been removed from the team.`,
-    });
+    try {
+      const response = await fetch('/api/workspace/members/remove', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to remove member');
+      }
+
+      setTeamMembers((members) => members.filter((member) => member.email !== email));
+      toast.success("Team member removed", {
+        description: `${email} has been removed from the team.`,
+      });
+    } catch (error) {
+      console.error('Error removing member:', error);
+      toast.error('Failed to remove member', {
+        description: 'Please try again or contact support if the issue persists.',
+      });
+    }
   }
 
   if (isInitializing) {
@@ -325,7 +396,9 @@ export default function WorkspaceSettingsTab() {
                     <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
                       member.status === "ACTIVE" 
                         ? "bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-400" 
-                        : "bg-amber-100 text-amber-800 dark:bg-amber-800/30 dark:text-amber-400"
+                        : member.status === "PENDING"
+                        ? "bg-amber-100 text-amber-800 dark:bg-amber-800/30 dark:text-amber-400"
+                        : "bg-blue-100 text-blue-800 dark:bg-blue-800/30 dark:text-blue-400"
                     }`}>
                       {member.status}
                     </span>
