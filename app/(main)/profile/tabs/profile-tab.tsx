@@ -26,7 +26,16 @@ const profileFormSchema = z.object({
     message: 'Name is required.',
   }),
   profile_context: z.string().max(1500).optional(),
-  system_prompt_template: z.string().max(3000).optional(),
+  system_prompt_template: z.string().max(3000).refine(
+    (value) => {
+      if (!value) return true; // Allow empty values
+      const requiredVariables = ['{local_date}', '{profile_context}', '{assistant}', '{prompt}'];
+      return requiredVariables.every(variable => value.includes(variable));
+    },
+    {
+      message: 'System prompt template must include all required variables: {local_date}, {profile_context}, {assistant}, {prompt}',
+    }
+  ).optional(),
   large_text_paste_threshold: z.coerce.number().min(1000).max(50000),
 });
 
@@ -153,7 +162,7 @@ User info: "{profile_context}"
       onSubmit(data);
     },
     (errors) => {
-      console.error('Form validation failed:', errors);
+      console.log('Form validation failed:', errors);
       toast.error('Form validation failed', {
         description: 'Please check the form for errors and try again.',
       });
