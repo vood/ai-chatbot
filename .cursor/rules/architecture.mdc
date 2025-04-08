@@ -19,6 +19,14 @@ alwaysApply: true
 *   Icons: Lucide Icons
 *   Notifications: Sonner for toasts, don't use custom hook
 
+## Components and pages
+* Shared components should be in the components directory
+* Page related components should be in the /app/<page>/components/ directory
+
+## Forms and crud
+* Use zod for form validation
+* Use react-hook-form for managing form state
+
 ## UI with shadcn/ui
 * Use standard components of shadcn/ui as much as possible
 * Use sonner for toasts / notifications
