@@ -443,10 +443,7 @@ User info: "{profile_context}"
               name="system_prompt_template"
               render={({ field }) => (
                 <FormItem>
-                  <div className="flex items-center gap-2">
-                    <FormLabel>System Prompt Template</FormLabel>
-                    <InfoCircle className="h-4 w-4 text-muted-foreground" />
-                  </div>
+                  <FormLabel>System Prompt Template</FormLabel>
                   <FormControl>
                     <Textarea
                       className="font-mono text-sm min-h-[150px] resize-none"
@@ -479,18 +476,16 @@ User info: "{profile_context}"
               name="large_text_paste_threshold"
               render={({ field }) => (
                 <FormItem>
-                  <div className="flex items-center gap-2">
-                    <FormLabel>
-                      Large Text Paste Threshold (characters)
-                    </FormLabel>
-                    <InfoCircle className="h-4 w-4 text-muted-foreground" />
-                  </div>
+                  <FormLabel>
+                    Large Text Paste Threshold (characters)
+                  </FormLabel>
                   <FormControl>
                     <Input type="number" {...field} />
                   </FormControl>
                   <FormDescription>
                     Text larger than this will be automatically converted to a
-                    file when pasted.
+                    file when pasted.<br/>
+                    Should be between 1000 and 50000 characters.
                   </FormDescription>
                 </FormItem>
               )}
