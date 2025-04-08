@@ -20,6 +20,66 @@ import { DocumentPreview } from './document-preview';
 import { MessageReasoning } from './message-reasoning';
 import type { UseChatHelpers } from '@ai-sdk/react';
 import SearchResults from './search-results';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from './ui/collapsible';
+import { ChevronDown } from 'lucide-react';
+
+// Animation variants for the collapsible content
+const contentVariants = {
+  open: {
+    height: 'auto',
+    opacity: 1,
+    transition: { duration: 0.3, ease: 'easeOut' },
+  },
+  closed: {
+    height: 0,
+    opacity: 0,
+    transition: { duration: 0.3, ease: 'easeIn' },
+  },
+};
+
+// Tool card component for displaying generic tool calls and results
+const ToolCard = ({ toolName, data }: { toolName: string; data: any }) => {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="border rounded-lg bg-card text-card-foreground shadow-sm mb-2 w-full">
+      <button
+        type="button"
+        className="w-full text-left px-3 py-2"
+        onClick={() => setOpen(!open)}
+      >
+        <div className="flex items-center justify-between w-full">
+          <h3 className="text-sm font-medium truncate">{toolName}</h3>
+          <ChevronDown
+            className={`h-4 w-4 flex-shrink-0 ml-2 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          />
+        </div>
+      </button>
+
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="overflow-hidden w-full"
+          >
+            <div className="px-3 pb-3 w-full">
+              <pre className="bg-muted p-2 rounded-md overflow-x-auto whitespace-pre-wrap break-words text-xs w-full max-w-full">
+                {JSON.stringify(data, null, 2)}
+              </pre>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
 
 const PurePreviewMessage = ({
   chatId,
@@ -196,7 +256,9 @@ const PurePreviewMessage = ({
                           args={args}
                           isReadonly={isReadonly}
                         />
-                      ) : null}
+                      ) : (
+                        <ToolCard toolName={toolName} data={args} />
+                      )}
                     </div>
                   );
                 }
@@ -268,7 +330,7 @@ const PurePreviewMessage = ({
                           )}
                         </div>
                       ) : (
-                        <pre>{JSON.stringify(result, null, 2)}</pre>
+                        <ToolCard toolName={toolName} data={result} />
                       )}
                     </div>
                   );

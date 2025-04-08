@@ -2,9 +2,11 @@ import {
   appendResponseMessages,
   convertToCoreMessages,
   createDataStreamResponse,
+  experimental_createMCPClient,
   smoothStream,
   streamText,
 } from 'ai';
+import { Experimental_StdioMCPTransport } from 'ai/mcp-stdio';
 import { auth } from '@/lib/supabase/server';
 import { systemPrompt } from '@/lib/ai/prompts';
 import {
@@ -113,6 +115,20 @@ export async function POST(request: Request) {
       }
     }
 
+    const transport = new Experimental_StdioMCPTransport({
+      command: 'npx',
+      args: [
+        '-y',
+        '@supabase/mcp-server-supabase@latest',
+        '--access-token',
+        'sbp_de2e4b601aae02b425c292b3d2c7f73156a9422c',
+      ],
+    });
+
+    const client = await experimental_createMCPClient({
+      transport,
+    });
+
     await saveMessages({
       messages: [
         {
@@ -132,6 +148,8 @@ export async function POST(request: Request) {
         },
       ],
     });
+
+    const mcpTools = await client.tools();
 
     return createDataStreamResponse({
       execute: (dataStream) => {
@@ -153,11 +171,14 @@ export async function POST(request: Request) {
             dataStream,
           }),
           ...imageGenerationTools,
+          ...mcpTools,
         };
 
         const validSelectedToolNames = (selectedTools ?? []).filter(
           (toolName) => toolName in tools,
         ) as (keyof typeof tools)[];
+
+        const mcpToolNames = Object.keys(mcpTools) as (keyof typeof tools)[];
 
         const alwaysEnabledTools: (keyof typeof tools)[] = [
           'sendDocumentForSigning',
@@ -165,6 +186,7 @@ export async function POST(request: Request) {
           'updateDocument',
           'requestSuggestions',
           'requestContractFields',
+          ...mcpToolNames,
         ];
         const activeToolNames =
           validSelectedToolNames.length > 0
