@@ -2,11 +2,9 @@ import {
   appendResponseMessages,
   convertToCoreMessages,
   createDataStreamResponse,
-  experimental_createMCPClient,
   smoothStream,
   streamText,
 } from 'ai';
-import { Experimental_StdioMCPTransport } from 'ai/mcp-stdio';
 import { auth } from '@/lib/supabase/server';
 import { systemPrompt } from '@/lib/ai/prompts';
 import {
@@ -23,6 +21,7 @@ import {
 import { generateTitleFromUserMessage } from '../../actions';
 import { isProductionEnvironment } from '@/lib/constants';
 import { myProvider, getLanguageModel } from '@/lib/ai/providers';
+import { getAllMCPTools } from '@/lib/ai/mcp-clients';
 import type { Json } from '@/supabase/types';
 import { z } from 'zod';
 import {
@@ -45,7 +44,19 @@ const ChatRequestSchema = z.object({
   selectedChatModel: z.string(),
   supportsTools: z.boolean(),
   selectedTools: z.array(z.string()).optional(),
+  // Add a data field for additional request data
+  data: z.record(z.string(), z.string()).optional(),
 });
+
+// Extract all MCP tools for a given server
+const getMCPToolsForServer = (
+  serverName: string,
+  mcpTools: Record<string, any>,
+): string[] => {
+  return Object.keys(mcpTools).filter((toolName) =>
+    toolName.startsWith(`${serverName}_`),
+  );
+};
 
 export async function POST(request: Request) {
   try {
@@ -72,6 +83,7 @@ export async function POST(request: Request) {
       messages,
       selectedChatModel,
       selectedTools, // This is already correctly typed by the schema
+      data,
     } = parsedData.data;
 
     const authResult = await auth();
@@ -115,19 +127,38 @@ export async function POST(request: Request) {
       }
     }
 
-    const transport = new Experimental_StdioMCPTransport({
-      command: 'npx',
-      args: [
-        '-y',
-        '@supabase/mcp-server-supabase@latest',
-        '--access-token',
-        'sbp_de2e4b601aae02b425c292b3d2c7f73156a9422c',
-      ],
-    });
+    // Fetch MCP tools from our config
+    const mcpTools = await getAllMCPTools();
 
-    const client = await experimental_createMCPClient({
-      transport,
-    });
+    // Extract selected MCP tools from the request data if present
+    const selectedMcpTools: string[] = [];
+    if (data?.mcpTools) {
+      try {
+        const parsedMcpTools = JSON.parse(data.mcpTools);
+        if (Array.isArray(parsedMcpTools)) {
+          selectedMcpTools.push(...parsedMcpTools);
+        }
+      } catch (error) {
+        console.error('Error parsing MCP tools:', error);
+      }
+    }
+
+    // Get unique server names from the selected tools
+    const selectedServers = new Set(
+      selectedMcpTools.map((toolName) => {
+        const parts = toolName.split('_');
+        return parts[0]; // Return the server name part
+      }),
+    );
+
+    // Always enabled tools
+    const alwaysEnabledCoreTools = [
+      'sendDocumentForSigning',
+      'createDocument',
+      'updateDocument',
+      'requestSuggestions',
+      'requestContractFields',
+    ];
 
     await saveMessages({
       messages: [
@@ -149,8 +180,6 @@ export async function POST(request: Request) {
       ],
     });
 
-    const mcpTools = await client.tools();
-
     return createDataStreamResponse({
       execute: (dataStream) => {
         const tools = {
@@ -171,27 +200,30 @@ export async function POST(request: Request) {
             dataStream,
           }),
           ...imageGenerationTools,
-          ...mcpTools,
+          ...mcpTools, // Add all available MCP tools
         };
 
+        // Filter valid selected tools that exist in our tools object
         const validSelectedToolNames = (selectedTools ?? []).filter(
+          (toolName) => toolName in tools && !toolName.includes('_'), // Exclude MCP tools here
+        ) as (keyof typeof tools)[];
+
+        // Only include specifically selected MCP tools
+        const validMcpToolNames = selectedMcpTools.filter(
           (toolName) => toolName in tools,
         ) as (keyof typeof tools)[];
 
-        const mcpToolNames = Object.keys(mcpTools) as (keyof typeof tools)[];
+        // Get core tools as properly typed
+        const coreTools = alwaysEnabledCoreTools.filter(
+          (toolName) => toolName in tools,
+        ) as (keyof typeof tools)[];
 
-        const alwaysEnabledTools: (keyof typeof tools)[] = [
-          'sendDocumentForSigning',
-          'createDocument',
-          'updateDocument',
-          'requestSuggestions',
-          'requestContractFields',
-          ...mcpToolNames,
+        // Combine all tools with proper typing
+        const activeToolNames = [
+          ...coreTools,
+          ...validMcpToolNames,
+          ...validSelectedToolNames,
         ];
-        const activeToolNames =
-          validSelectedToolNames.length > 0
-            ? [...alwaysEnabledTools, ...validSelectedToolNames]
-            : alwaysEnabledTools;
 
         const result = streamText({
           model: selectedChatModel.startsWith('chat-')
@@ -199,7 +231,7 @@ export async function POST(request: Request) {
             : getLanguageModel(selectedChatModel),
           system: systemPrompt({ selectedChatModel }),
           messages: convertToCoreMessages(messages),
-          maxSteps: 5,
+          maxSteps: 50,
           experimental_activeTools: activeToolNames,
           experimental_transform: smoothStream({ chunking: 'word' }),
           experimental_generateMessageId: generateUUID,

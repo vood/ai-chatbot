@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "stripe": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@stripe/mcp",
+        "--tools=all",
+        "--api-key={STRIPE_SECRET_KEY}"
+      ]
+    },
+    "supabase_postgres": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "postgres://postgres:{POSTGRES_PASSWORD}@aws-0-us-west-1.pooler.supabase.com:6543/postgres"
+      ]
+    }
+  }
+}

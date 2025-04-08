@@ -41,6 +41,7 @@ import { CommandPrompt } from './command-prompt';
 import { PromptVariablesDialog } from './prompt-variables-dialog';
 import { AttachmentsButton, SendButton, StopButton } from './chat-buttons';
 import { useSupabaseStorageUpload } from '@/hooks/use-supabase-storage-upload';
+import { MCPToolsMenu } from './mcp-tools-menu';
 
 // Define the type locally (or move to a shared types file)
 interface OpenRouterModel {
@@ -242,12 +243,23 @@ function PureMultimodalInput({
   const submitForm = useCallback(() => {
     window.history.replaceState({}, '', `/chat/${chatId}`);
 
+    // Extract and identify MCP tools vs standard tools
+    const mcpTools = Array.from(selectedTools)
+      .filter((tool) => tool.includes('_')) // MCP tools have a server prefix with underscore
+      .map((id) => id);
+
+    const standardTools = Array.from(selectedTools).filter(
+      (tool) => !tool.includes('_'),
+    ); // Standard tools don't have an underscore
+
     handleSubmit(undefined, {
       experimental_attachments: attachments,
       data: {
-        // Construct data payload based on the selectedTools set
-        webSearchEnabled: JSON.stringify(selectedTools.has('webSearch')),
-        // Add other tool states if needed by the backend API route
+        // Standard tool flags
+        webSearchEnabled: JSON.stringify(standardTools.includes('webSearch')),
+        // Add MCP tools data
+        mcpTools: JSON.stringify(mcpTools),
+        selectedTools: JSON.stringify(Array.from(selectedTools)),
       },
     });
 
@@ -398,6 +410,11 @@ function PureMultimodalInput({
                 isActive={selectedTools.has('webSearch')}
                 onClick={() => handleToggleTool('webSearch')}
                 tooltip="Toggle web search"
+                disabled={status !== 'ready' || isUploading}
+              />
+              <MCPToolsMenu
+                selectedTools={selectedTools}
+                onSelectedToolsChange={onSelectedToolsChange}
                 disabled={status !== 'ready' || isUploading}
               />
             </>

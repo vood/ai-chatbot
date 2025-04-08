@@ -32,47 +32,18 @@ This tool will call other functions that will generate the contents of the docum
 
 Do not return the document in the conversation, it's already in the artifact and shown to the user.
       `,
-    parameters: z
-      .object({
-        title: z.string(),
-        kind: z.enum(artifactKinds),
-        metadata: z.object({
-          language: z
-            .string()
-            .optional()
-            .describe(
-              'The programming language of the document. Only required when kind is "code". I.e. "python", "javascript", "typescript", "html", "css", "markdown", etc.',
-            ),
-        }),
-      })
-      .refine(
-        (data) => {
-          // If kind is 'code', then language is required
-          if (data.kind === 'code' && !data.metadata.language) {
-            return false;
-          }
-
-          // If kind is not 'code', then language should not be provided
-          if (data.kind !== 'code' && data.metadata.language) {
-            return false;
-          }
-
-          return true;
-        },
-        (data) => {
-          if (data.kind === 'code' && !data.metadata.language) {
-            return {
-              message: 'Language is required when kind is "code"',
-              path: ['metadata', 'language'],
-            };
-          }
-
-          return {
-            message: 'Language should only be provided when kind is "code"',
-            path: ['metadata', 'language'],
-          };
-        },
-      ),
+    parameters: z.object({
+      title: z.string(),
+      kind: z.enum(artifactKinds),
+      metadata: z.object({
+        language: z
+          .string()
+          .optional()
+          .describe(
+            'The programming language of the document. Only used when kind is "code". I.e. "python", "javascript", "typescript", "html", "css", "markdown", etc.',
+          ),
+      }),
+    }),
     execute: async ({ title, kind, metadata }) => {
       const id = generateUUID();
 

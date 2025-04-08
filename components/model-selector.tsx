@@ -414,7 +414,7 @@ function PureModelSelector({
           <Button
             variant="ghost"
             className={cn(
-              'flex items-center gap-1.5 justify-start text-xs px-2 h-8 w-full',
+              'flex items-center gap-1.5 justify-start text-xs px-2 h-8 w-full max-w-[170px]',
               className,
             )}
             disabled={isLoading}
@@ -424,7 +424,7 @@ function PureModelSelector({
               'Loading...'
             ) : selectedModel ? (
               <>
-                <span className="flex h-5 w-5 items-center justify-center flex-shrink-0">
+                <span className="flex h-5 w-5 items-center justify-center truncate flex-shrink-0">
                   {renderProviderIcon(selectedModel)}
                 </span>
                 <span className="truncate text-xs">

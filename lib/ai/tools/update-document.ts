@@ -28,44 +28,21 @@ NEVER RUN updateDocument right after createDocument.
 
 Do not return the document in the conversation, it's already in the artifact and shown to the user.
     `,
-    parameters: z
-      .object({
-        id: z.string().describe('The ID of the document to update'),
-        description: z
+    parameters: z.object({
+      id: z.string().describe('The ID of the document to update'),
+      description: z
+        .string()
+        .describe('The description of changes that need to be made'),
+      kind: z.enum(artifactKinds),
+      metadata: z.object({
+        language: z
           .string()
-          .describe('The description of changes that need to be made'),
-        kind: z.enum(artifactKinds),
-        metadata: z.object({
-          language: z
-            .string()
-            .optional()
-            .describe(
-              'The programming language of the document. Only required when kind is "code". I.e. "python", "javascript", "typescript", "html", "css", "markdown", etc.',
-            ),
-        }),
-      })
-      .refine(
-        (data) => {
-          if (data.kind === 'code' && !data.metadata.language) {
-            return false;
-          }
-
-          return true;
-        },
-        (data) => {
-          if (data.kind === 'code' && !data.metadata.language) {
-            return {
-              message: 'Language is required when kind is "code"',
-              path: ['metadata', 'language'],
-            };
-          }
-
-          return {
-            message: 'Language should only be provided when kind is "code"',
-            path: ['metadata', 'language'],
-          };
-        },
-      ),
+          .optional()
+          .describe(
+            'The programming language of the document. Only required when kind is "code". I.e. "python", "javascript", "typescript", "html", "css", "markdown", etc.',
+          ),
+      }),
+    }),
     execute: async ({ id, description, metadata }) => {
       const document = await getDocumentById({ id });
 
