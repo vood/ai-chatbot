@@ -1,13 +1,13 @@
-'use client';
+"use client"
 
-import { SparklesIcon } from '@/components/icons';
-import type { Tables } from '@/supabase/types';
-
-type Agent = Tables<'assistants'>;
+import { SparklesIcon } from "@/components/icons"
+import type { Tables } from "@/supabase/types"
+import Image from "next/image"
+type Agent = Tables<"assistants">
 
 interface AgentCardProps {
-  agent: Agent;
-  onClick: (agent: Agent) => void;
+  agent: Agent
+  onClick: (agent: Agent) => void
 }
 
 export function AgentCard({ agent, onClick }: AgentCardProps) {
@@ -18,8 +18,8 @@ export function AgentCard({ agent, onClick }: AgentCardProps) {
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          onClick(agent);
+        if (e.key === "Enter" || e.key === " ") {
+          onClick(agent)
         }
       }}
       className="flex flex-col items-center text-center p-4 rounded-lg border border-border bg-card hover:shadow-lg transition-shadow cursor-pointer"
@@ -27,7 +27,9 @@ export function AgentCard({ agent, onClick }: AgentCardProps) {
       {/* Display Agent Image (from image_path) or Fallback Icon */}
       <div className="mb-2 flex items-center justify-center h-10 w-10 rounded-full bg-primary/10 text-primary overflow-hidden">
         {agent.image_path ? (
-          <img
+          <Image
+            width={128}
+            height={128}
             src={agent.image_path}
             alt={`${agent.name} logo`}
             className="h-full w-full object-cover"
@@ -43,5 +45,5 @@ export function AgentCard({ agent, onClick }: AgentCardProps) {
         {agent.description || agent.prompt}
       </p>
     </div>
-  );
+  )
 }

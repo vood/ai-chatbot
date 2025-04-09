@@ -4,26 +4,26 @@ import {
   createDataStreamResponse,
   smoothStream,
   streamText,
-} from 'ai';
-import { auth } from '@/lib/supabase/server';
-import { systemPrompt } from '@/lib/ai/prompts';
+} from "ai"
+import { auth } from "@/lib/supabase/server"
+import { systemPrompt } from "@/lib/ai/prompts"
 import {
   deleteChatById,
   getChatById,
   saveChat,
   saveMessages,
-} from '@/lib/db/queries';
+} from "@/lib/db/queries"
 import {
   generateUUID,
   getMostRecentUserMessage,
   getTrailingMessageId,
-} from '@/lib/utils';
-import { generateTitleFromUserMessage } from '../../actions';
-import { isProductionEnvironment } from '@/lib/constants';
-import { myProvider, getLanguageModel } from '@/lib/ai/providers';
-import { getAllMCPTools } from '@/lib/ai/mcp-clients';
-import type { Json } from '@/supabase/types';
-import { z } from 'zod';
+} from "@/lib/utils"
+import { generateTitleFromUserMessage } from "../../actions"
+import { isProductionEnvironment } from "@/lib/constants"
+import { myProvider, getLanguageModel } from "@/lib/ai/providers"
+import { getAllMCPTools } from "@/lib/ai/mcp-clients"
+import type { Json } from "@/supabase/types"
+import { z } from "zod"
 import {
   webSearch,
   requestContractFields,
@@ -33,10 +33,10 @@ import {
   updateDocument,
   sendDocumentForSigning,
   getWeather,
-} from '@/lib/ai/tools';
-import { incrementDailyMessageCount } from '@/lib/db/queries/stats';
-import { getAgentById } from '@/lib/db/queries/agents';
-export const maxDuration = 60;
+} from "@/lib/ai/tools"
+import { incrementDailyMessageCount } from "@/lib/db/queries/stats"
+import { getAgentById } from "@/lib/db/queries/agents"
+export const maxDuration = 60
 
 /**
  * Filter tools based on support and selection criteria
@@ -49,21 +49,21 @@ function getFilteredTools(
   coreToolNames: string[] = [],
 ) {
   if (!supportsTools) {
-    return {};
+    return {}
   }
 
   // Filter valid selected tools that exist in the tools object
   const activeToolNames = selectedTools.filter(
-    (toolName) => toolName in tools && !toolName.includes('_'), // Exclude MCP tools
-  );
+    (toolName) => toolName in tools && !toolName.includes("_"), // Exclude MCP tools
+  )
 
   // Only include specifically selected MCP tools
   const validMcpToolNames = selectedMcpTools.filter(
     (toolName) => toolName in tools,
-  );
+  )
 
   // Get core tools that exist in the tools object
-  const coreTools = coreToolNames.filter((toolName) => toolName in tools);
+  const coreTools = coreToolNames.filter((toolName) => toolName in tools)
 
   // Build the filtered tools object
   return Object.fromEntries(
@@ -71,7 +71,7 @@ function getFilteredTools(
       toolName,
       tools[toolName],
     ]),
-  );
+  )
 }
 
 // Define Zod schema for the request body
@@ -84,25 +84,25 @@ const ChatRequestSchema = z.object({
   selectedTools: z.array(z.string()).optional(),
   // Add a data field for additional request data
   data: z.record(z.string(), z.string()).optional(),
-});
+})
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const parsedData = ChatRequestSchema.safeParse(body);
+    const body = await request.json()
+    const parsedData = ChatRequestSchema.safeParse(body)
 
     if (!parsedData.success) {
-      console.error('Validation Error:', parsedData.error.errors);
+      console.error("Validation Error:", parsedData.error.errors)
       return new Response(
         JSON.stringify({
-          error: 'Invalid request body',
+          error: "Invalid request body",
           details: parsedData.error.errors,
         }),
         {
           status: 400,
-          headers: { 'Content-Type': 'application/json' },
+          headers: { "Content-Type": "application/json" },
         },
-      );
+      )
     }
 
     // Use validated data from here on
@@ -113,53 +113,53 @@ export async function POST(request: Request) {
       supportsTools,
       selectedTools, // This is already correctly typed by the schema
       data,
-    } = parsedData.data;
+    } = parsedData.data
 
-    const authResult = await auth();
+    const authResult = await auth()
     if (!authResult) {
-      return new Response('Unauthorized', { status: 401 });
+      return new Response("Unauthorized", { status: 401 })
     }
-    const user = authResult;
+    const user = authResult
 
-    const userMessage = getMostRecentUserMessage(messages);
+    const userMessage = getMostRecentUserMessage(messages)
 
     if (!userMessage) {
-      return new Response('No user message found', { status: 400 });
+      return new Response("No user message found", { status: 400 })
     }
 
     // Check if the selected model is an agent
-    const isAgent = selectedChatModel.startsWith('agent/');
-    let agentData = null;
-    let actualModelToUse = selectedChatModel;
-    let customSystemPrompt = null;
+    const isAgent = selectedChatModel.startsWith("agent/")
+    let agentData = null
+    let actualModelToUse = selectedChatModel
+    let customSystemPrompt = null
 
     // If this is an agent, get the agent information
     if (isAgent) {
       try {
-        const agentId = selectedChatModel.replace('agent/', '');
-        agentData = await getAgentById(agentId);
+        const agentId = selectedChatModel.replace("agent/", "")
+        agentData = await getAgentById(agentId)
 
         if (!agentData) {
-          return new Response('Agent not found', { status: 404 });
+          return new Response("Agent not found", { status: 404 })
         }
 
         // Use the agent's configured model and prompt
-        actualModelToUse = agentData.model;
-        customSystemPrompt = agentData.prompt;
+        actualModelToUse = agentData.model
+        customSystemPrompt = agentData.prompt
       } catch (error) {
-        console.error('Error fetching agent:', error);
-        return new Response('Error fetching agent information', {
+        console.error("Error fetching agent:", error)
+        return new Response("Error fetching agent information", {
           status: 500,
-        });
+        })
       }
     }
 
-    const chat = await getChatById({ id });
+    const chat = await getChatById({ id })
 
     if (!chat) {
       const title = await generateTitleFromUserMessage({
         message: userMessage,
-      });
+      })
 
       await saveChat({
         id,
@@ -167,53 +167,53 @@ export async function POST(request: Request) {
         userId: user.id,
         workspace_id: user.current_workspace,
         model: selectedChatModel, // Use the agent ID when it's an agent
-        prompt: customSystemPrompt || '',
+        prompt: customSystemPrompt || "",
         context_length: 1000,
-        embeddings_provider: 'openai',
+        embeddings_provider: "openai",
         include_profile_context: true,
         include_workspace_instructions: true,
         temperature: 0.5,
-        assistant_id: isAgent ? selectedChatModel.replace('agent/', '') : null,
+        assistant_id: isAgent ? selectedChatModel.replace("agent/", "") : null,
         folder_id: null,
-        sharing: 'private',
-      });
+        sharing: "private",
+      })
     } else {
       if (chat.user_id !== user.id) {
-        return new Response('Unauthorized', { status: 401 });
+        return new Response("Unauthorized", { status: 401 })
       }
     }
 
     // Fetch MCP tools from our config
-    const mcpTools = await getAllMCPTools();
+    const mcpTools = await getAllMCPTools()
 
     // Extract selected MCP tools from the request data if present
-    const selectedMcpTools: string[] = [];
+    const selectedMcpTools: string[] = []
     if (data?.mcpTools) {
       try {
-        const parsedMcpTools = JSON.parse(data.mcpTools);
+        const parsedMcpTools = JSON.parse(data.mcpTools)
         if (Array.isArray(parsedMcpTools)) {
-          selectedMcpTools.push(...parsedMcpTools);
+          selectedMcpTools.push(...parsedMcpTools)
         }
       } catch (error) {
-        console.error('Error parsing MCP tools:', error);
+        console.error("Error parsing MCP tools:", error)
       }
     }
 
     // Always enabled tools
     const alwaysEnabledCoreTools = [
-      'sendDocumentForSigning',
-      'createDocument',
-      'updateDocument',
-      'requestSuggestions',
-      'requestContractFields',
-    ];
+      "sendDocumentForSigning",
+      "createDocument",
+      "updateDocument",
+      "requestSuggestions",
+      "requestContractFields",
+    ]
 
     await saveMessages({
       messages: [
         {
           chat_id: id,
           id: userMessage.id,
-          role: 'user',
+          role: "user",
           parts: userMessage.parts as unknown as Json,
           attachments: (userMessage.experimental_attachments ??
             []) as unknown as Json,
@@ -226,7 +226,7 @@ export async function POST(request: Request) {
           word_count: 0,
         },
       ],
-    });
+    })
 
     return createDataStreamResponse({
       execute: (dataStream) => {
@@ -249,7 +249,7 @@ export async function POST(request: Request) {
           }),
           ...imageGenerationTools,
           ...mcpTools, // Add all available MCP tools
-        };
+        }
 
         const filteredTools = getFilteredTools(
           tools,
@@ -257,10 +257,10 @@ export async function POST(request: Request) {
           selectedTools ?? [],
           selectedMcpTools,
           alwaysEnabledCoreTools,
-        );
+        )
 
         const result = streamText({
-          model: actualModelToUse.startsWith('chat-')
+          model: actualModelToUse.startsWith("chat-")
             ? myProvider.languageModel(actualModelToUse as any)
             : getLanguageModel(actualModelToUse),
           system:
@@ -268,7 +268,7 @@ export async function POST(request: Request) {
             systemPrompt({ selectedChatModel: actualModelToUse }),
           messages: convertToCoreMessages(messages),
           maxSteps: 5,
-          experimental_transform: smoothStream({ chunking: 'word' }),
+          experimental_transform: smoothStream({ chunking: "word" }),
           experimental_generateMessageId: generateUUID,
           tools: filteredTools,
           onFinish: async ({ response, usage }) => {
@@ -276,18 +276,18 @@ export async function POST(request: Request) {
               try {
                 const assistantId = getTrailingMessageId({
                   messages: response.messages.filter(
-                    (message) => message.role === 'assistant',
+                    (message) => message.role === "assistant",
                   ),
-                });
+                })
 
                 if (!assistantId) {
-                  throw new Error('No assistant message found!');
+                  throw new Error("No assistant message found!")
                 }
 
                 const [, assistantMessage] = appendResponseMessages({
                   messages: [userMessage],
                   responseMessages: response.messages,
-                });
+                })
 
                 await saveMessages({
                   messages: [
@@ -307,77 +307,77 @@ export async function POST(request: Request) {
                       word_count: 0,
                     },
                   ],
-                });
+                })
                 await incrementDailyMessageCount({
                   userId: user.id,
                   model: actualModelToUse, // Track actual model usage for analytics
                   workspaceId: user.current_workspace,
                   inputTokenCount: usage.promptTokens,
                   outputTokenCount: usage.completionTokens,
-                });
+                })
               } catch (_) {
-                console.error('Failed to save chat');
+                console.error("Failed to save chat")
               }
             }
           },
           experimental_telemetry: {
             isEnabled: isProductionEnvironment,
-            functionId: 'stream-text',
+            functionId: "stream-text",
           },
-        });
+        })
 
-        result.consumeStream();
+        result.consumeStream()
 
         result.mergeIntoDataStream(dataStream, {
           sendReasoning: true,
-        });
+        })
       },
       onError: (error: unknown) => {
-        console.error(error);
+        console.error(error)
         return error instanceof Error
           ? error.message
-          : 'Oops, an error occured!';
+          : "Oops, an error occured!"
       },
-    });
+    })
   } catch (error) {
-    console.error(error);
-    return new Response('An error occurred while processing your request!', {
+    console.error(error)
+    return new Response("An error occurred while processing your request!", {
       status: 404,
-    });
+    })
   }
 }
 
 export async function DELETE(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const id = searchParams.get('id');
+  const { searchParams } = new URL(request.url)
+  const id = searchParams.get("id")
 
   if (!id) {
-    return new Response('Not Found', { status: 404 });
+    return new Response("Not Found", { status: 404 })
   }
 
-  const user = await auth();
+  const user = await auth()
 
   if (!user) {
-    return new Response('Unauthorized', { status: 401 });
+    return new Response("Unauthorized", { status: 401 })
   }
 
   try {
-    const chat = await getChatById({ id });
+    const chat = await getChatById({ id })
 
     if (!chat) {
-      return new Response('Chat Not Found', { status: 404 });
+      return new Response("Chat Not Found", { status: 404 })
     }
 
     if (chat.user_id !== user.id) {
-      return new Response('Unauthorized', { status: 401 });
+      return new Response("Unauthorized", { status: 401 })
     }
 
-    await deleteChatById({ id });
+    await deleteChatById({ id })
 
-    return new Response('Chat deleted', { status: 200 });
+    return new Response("Chat deleted", { status: 200 })
   } catch (error) {
-    return new Response('An error occurred while processing your request!', {
+    return new Response("An error occurred while processing your request!", {
       status: 500,
-    });
+    })
   }
 }

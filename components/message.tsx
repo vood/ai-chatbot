@@ -1,49 +1,49 @@
-'use client';
+"use client"
 
-import type { UIMessage } from 'ai';
-import cx from 'classnames';
-import { AnimatePresence, motion } from 'framer-motion';
-import { memo, useState } from 'react';
-import type { Vote } from '@/lib/db/schema';
-import { DocumentToolCall, DocumentToolResult } from './document';
-import { PencilEditIcon, SparklesIcon, ImageIcon } from './icons';
-import { Markdown } from './markdown';
-import { MessageActions } from './message-actions';
-import { PreviewAttachment } from './preview-attachment';
-import { Weather } from './weather';
-import equal from 'fast-deep-equal';
-import { cn } from '@/lib/utils';
-import { Button } from './ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
-import { MessageEditor } from './message-editor';
-import { DocumentPreview } from './document-preview';
-import { MessageReasoning } from './message-reasoning';
-import type { UseChatHelpers } from '@ai-sdk/react';
-import SearchResults from './search-results';
+import type { UIMessage } from "ai"
+import cx from "classnames"
+import { AnimatePresence, motion } from "framer-motion"
+import { memo, useState } from "react"
+import type { Vote } from "@/lib/db/schema"
+import { DocumentToolCall, DocumentToolResult } from "./document"
+import { PencilEditIcon, SparklesIcon, ImageIcon } from "./icons"
+import { Markdown } from "./markdown"
+import { MessageActions } from "./message-actions"
+import { PreviewAttachment } from "./preview-attachment"
+import { Weather } from "./weather"
+import equal from "fast-deep-equal"
+import { cn } from "@/lib/utils"
+import { Button } from "./ui/button"
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip"
+import { MessageEditor } from "./message-editor"
+import { DocumentPreview } from "./document-preview"
+import { MessageReasoning } from "./message-reasoning"
+import type { UseChatHelpers } from "@ai-sdk/react"
+import SearchResults from "./search-results"
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from './ui/collapsible';
-import { ChevronDown } from 'lucide-react';
-
+} from "./ui/collapsible"
+import { ChevronDown } from "lucide-react"
+import Image from "next/image"
 // Animation variants for the collapsible content
 const contentVariants = {
   open: {
-    height: 'auto',
+    height: "auto",
     opacity: 1,
-    transition: { duration: 0.3, ease: 'easeOut' },
+    transition: { duration: 0.3, ease: "easeOut" },
   },
   closed: {
     height: 0,
     opacity: 0,
-    transition: { duration: 0.3, ease: 'easeIn' },
+    transition: { duration: 0.3, ease: "easeIn" },
   },
-};
+}
 
 // Tool card component for displaying generic tool calls and results
 const ToolCard = ({ toolName, data }: { toolName: string; data: any }) => {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(false)
 
   return (
     <div className="border rounded-lg bg-card text-card-foreground shadow-sm mb-2 w-full">
@@ -55,7 +55,7 @@ const ToolCard = ({ toolName, data }: { toolName: string; data: any }) => {
         <div className="flex items-center justify-between w-full">
           <h3 className="text-sm font-medium truncate">{toolName}</h3>
           <ChevronDown
-            className={`h-4 w-4 flex-shrink-0 ml-2 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+            className={`h-4 w-4 flex-shrink-0 ml-2 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
           />
         </div>
       </button>
@@ -64,7 +64,7 @@ const ToolCard = ({ toolName, data }: { toolName: string; data: any }) => {
         {open && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
+            animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.3 }}
             className="overflow-hidden w-full"
@@ -78,8 +78,8 @@ const ToolCard = ({ toolName, data }: { toolName: string; data: any }) => {
         )}
       </AnimatePresence>
     </div>
-  );
-};
+  )
+}
 
 const PurePreviewMessage = ({
   chatId,
@@ -90,15 +90,15 @@ const PurePreviewMessage = ({
   reload,
   isReadonly,
 }: {
-  chatId: string;
-  message: UIMessage;
-  vote: Vote | undefined;
-  isLoading: boolean;
-  setMessages: UseChatHelpers['setMessages'];
-  reload: UseChatHelpers['reload'];
-  isReadonly: boolean;
+  chatId: string
+  message: UIMessage
+  vote: Vote | undefined
+  isLoading: boolean
+  setMessages: UseChatHelpers["setMessages"]
+  reload: UseChatHelpers["reload"]
+  isReadonly: boolean
 }) => {
-  const [mode, setMode] = useState<'view' | 'edit'>('view');
+  const [mode, setMode] = useState<"view" | "edit">("view")
 
   return (
     <AnimatePresence>
@@ -111,14 +111,14 @@ const PurePreviewMessage = ({
       >
         <div
           className={cn(
-            'flex gap-4 w-full group-data-[role=user]/message:ml-auto group-data-[role=user]/message:max-w-2xl',
+            "flex gap-4 w-full group-data-[role=user]/message:ml-auto group-data-[role=user]/message:max-w-2xl",
             {
-              'w-full': mode === 'edit',
-              'group-data-[role=user]/message:w-fit': mode !== 'edit',
+              "w-full": mode === "edit",
+              "group-data-[role=user]/message:w-fit": mode !== "edit",
             },
           )}
         >
-          {message.role === 'assistant' && (
+          {message.role === "assistant" && (
             <div className="size-8 flex items-center rounded-full justify-center ring-1 shrink-0 ring-border bg-background">
               <div className="translate-y-px">
                 <SparklesIcon size={14} />
@@ -142,24 +142,24 @@ const PurePreviewMessage = ({
             )}
 
             {message.parts?.map((part, index) => {
-              const { type } = part;
-              const key = `message-${message.id}-part-${index}`;
+              const { type } = part
+              const key = `message-${message.id}-part-${index}`
 
-              if (type === 'reasoning') {
+              if (type === "reasoning") {
                 return (
                   <MessageReasoning
                     key={key}
                     isLoading={isLoading}
                     reasoning={part.reasoning}
                   />
-                );
+                )
               }
 
-              if (type === 'text') {
-                if (mode === 'view') {
+              if (type === "text") {
+                if (mode === "view") {
                   return (
                     <div key={key} className="flex flex-row gap-2 items-start">
-                      {message.role === 'user' && !isReadonly && (
+                      {message.role === "user" && !isReadonly && (
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button
@@ -167,7 +167,7 @@ const PurePreviewMessage = ({
                               variant="ghost"
                               className="px-2 h-fit rounded-full text-muted-foreground opacity-0 group-hover/message:opacity-100"
                               onClick={() => {
-                                setMode('edit');
+                                setMode("edit")
                               }}
                             >
                               <PencilEditIcon />
@@ -179,18 +179,18 @@ const PurePreviewMessage = ({
 
                       <div
                         data-testid="message-content"
-                        className={cn('flex flex-col gap-4', {
-                          'bg-primary text-primary-foreground px-3 py-2 rounded-xl':
-                            message.role === 'user',
+                        className={cn("flex flex-col gap-4", {
+                          "bg-primary text-primary-foreground px-3 py-2 rounded-xl":
+                            message.role === "user",
                         })}
                       >
                         <Markdown>{part.text}</Markdown>
                       </div>
                     </div>
-                  );
+                  )
                 }
 
-                if (mode === 'edit') {
+                if (mode === "edit") {
                   return (
                     <div key={key} className="flex flex-row gap-2 items-start">
                       <div className="size-8" />
@@ -203,31 +203,31 @@ const PurePreviewMessage = ({
                         reload={reload}
                       />
                     </div>
-                  );
+                  )
                 }
               }
 
-              if (type === 'tool-invocation') {
-                const { toolInvocation } = part;
-                const { toolName, toolCallId, state } = toolInvocation;
+              if (type === "tool-invocation") {
+                const { toolInvocation } = part
+                const { toolName, toolCallId, state } = toolInvocation
 
-                if (state === 'call') {
-                  const { args } = toolInvocation;
+                if (state === "call") {
+                  const { args } = toolInvocation
 
                   return (
                     <div
                       key={toolCallId}
                       className={cx({
-                        skeleton: ['getWeather', 'webSearch'].includes(
+                        skeleton: ["getWeather", "webSearch"].includes(
                           toolName,
                         ),
                       })}
                     >
-                      {toolName === 'webSearch' ? (
+                      {toolName === "webSearch" ? (
                         <SearchResults />
-                      ) : toolName === 'getWeather' ? (
+                      ) : toolName === "getWeather" ? (
                         <Weather />
-                      ) : toolName.startsWith('generate_image_using_') ? (
+                      ) : toolName.startsWith("generate_image_using_") ? (
                         <div className="relative p-4 border rounded-md bg-muted/50 flex flex-col items-center">
                           <div className="w-full h-32 flex items-center justify-center bg-muted/50 rounded-md animate-pulse mb-2">
                             <ImageIcon size={32} />
@@ -236,21 +236,21 @@ const PurePreviewMessage = ({
                             Generating image...
                           </p>
                         </div>
-                      ) : toolName === 'createDocument' ? (
+                      ) : toolName === "createDocument" ? (
                         <DocumentPreview isReadonly={isReadonly} args={args} />
-                      ) : toolName === 'updateDocument' ? (
+                      ) : toolName === "updateDocument" ? (
                         <DocumentToolCall
                           type="update"
                           args={args}
                           isReadonly={isReadonly}
                         />
-                      ) : toolName === 'requestSuggestions' ? (
+                      ) : toolName === "requestSuggestions" ? (
                         <DocumentToolCall
                           type="request-suggestions"
                           args={args}
                           isReadonly={isReadonly}
                         />
-                      ) : toolName === 'requestContractFields' ? (
+                      ) : toolName === "requestContractFields" ? (
                         <DocumentToolCall
                           type="request-fields"
                           args={args}
@@ -260,27 +260,29 @@ const PurePreviewMessage = ({
                         <ToolCard toolName={toolName} data={args} />
                       )}
                     </div>
-                  );
+                  )
                 }
 
-                if (state === 'result') {
-                  const { result } = toolInvocation;
+                if (state === "result") {
+                  const { result } = toolInvocation
 
                   return (
                     <div key={toolCallId}>
-                      {toolName === 'webSearch' ? (
+                      {toolName === "webSearch" ? (
                         <SearchResults results={result} />
-                      ) : toolName === 'getWeather' ? (
+                      ) : toolName === "getWeather" ? (
                         <Weather weatherAtLocation={result} />
-                      ) : toolName.startsWith('generate_image_using_') ? (
+                      ) : toolName.startsWith("generate_image_using_") ? (
                         <div className="relative p-4 border rounded-md bg-muted/50">
                           {result?.url ? (
                             <div className="flex flex-col">
-                              <img
+                              <Image
+                                width={1000}
+                                height={1000}
                                 src={result.url}
-                                alt={result.alt || 'Generated image'}
+                                alt={result.alt || "Generated image"}
                                 className="w-full rounded-md object-contain"
-                                style={{ maxHeight: '400px' }}
+                                style={{ maxHeight: "400px" }}
                               />
                               {result.prompt && (
                                 <p className="text-xs text-muted-foreground mt-2">
@@ -294,36 +296,36 @@ const PurePreviewMessage = ({
                             </p>
                           )}
                         </div>
-                      ) : toolName === 'createDocument' ? (
+                      ) : toolName === "createDocument" ? (
                         <DocumentPreview
                           isReadonly={isReadonly}
                           result={result}
                         />
-                      ) : toolName === 'updateDocument' ? (
+                      ) : toolName === "updateDocument" ? (
                         <DocumentToolResult
                           type="update"
                           result={result}
                           isReadonly={isReadonly}
                         />
-                      ) : toolName === 'requestSuggestions' ? (
+                      ) : toolName === "requestSuggestions" ? (
                         <DocumentToolResult
                           type="request-suggestions"
                           result={result}
                           isReadonly={isReadonly}
                         />
-                      ) : toolName === 'requestContractFields' ? (
+                      ) : toolName === "requestContractFields" ? (
                         <DocumentToolResult
                           type="request-fields"
                           result={result}
                           isReadonly={isReadonly}
                         />
-                      ) : toolName === 'sendDocumentForSigning' ? (
+                      ) : toolName === "sendDocumentForSigning" ? (
                         <div className="p-4 border rounded-md bg-muted/50 text-sm">
                           <p className="font-medium mb-1">
                             Send for Signing Result:
                           </p>
                           <p>{result?.message || JSON.stringify(result)}</p>
-                          {typeof result?.linksGenerated === 'number' && (
+                          {typeof result?.linksGenerated === "number" && (
                             <p className="text-xs text-muted-foreground mt-1">
                               Links Generated: {result.linksGenerated}
                             </p>
@@ -333,7 +335,7 @@ const PurePreviewMessage = ({
                         <ToolCard toolName={toolName} data={result} />
                       )}
                     </div>
-                  );
+                  )
                 }
               }
             })}
@@ -351,23 +353,23 @@ const PurePreviewMessage = ({
         </div>
       </motion.div>
     </AnimatePresence>
-  );
-};
+  )
+}
 
 export const PreviewMessage = memo(
   PurePreviewMessage,
   (prevProps, nextProps) => {
-    if (prevProps.isLoading !== nextProps.isLoading) return false;
-    if (prevProps.message.id !== nextProps.message.id) return false;
-    if (!equal(prevProps.message.parts, nextProps.message.parts)) return false;
-    if (!equal(prevProps.vote, nextProps.vote)) return false;
+    if (prevProps.isLoading !== nextProps.isLoading) return false
+    if (prevProps.message.id !== nextProps.message.id) return false
+    if (!equal(prevProps.message.parts, nextProps.message.parts)) return false
+    if (!equal(prevProps.vote, nextProps.vote)) return false
 
-    return true;
+    return true
   },
-);
+)
 
 export const ThinkingMessage = () => {
-  const role = 'assistant';
+  const role = "assistant"
 
   return (
     <motion.div
@@ -379,9 +381,9 @@ export const ThinkingMessage = () => {
     >
       <div
         className={cx(
-          'flex gap-4 group-data-[role=user]/message:px-3 w-full group-data-[role=user]/message:w-fit group-data-[role=user]/message:ml-auto group-data-[role=user]/message:max-w-2xl group-data-[role=user]/message:py-2 rounded-xl',
+          "flex gap-4 group-data-[role=user]/message:px-3 w-full group-data-[role=user]/message:w-fit group-data-[role=user]/message:ml-auto group-data-[role=user]/message:max-w-2xl group-data-[role=user]/message:py-2 rounded-xl",
           {
-            'group-data-[role=user]/message:bg-muted': true,
+            "group-data-[role=user]/message:bg-muted": true,
           },
         )}
       >
@@ -396,5 +398,5 @@ export const ThinkingMessage = () => {
         </div>
       </div>
     </motion.div>
-  );
-};
+  )
+}

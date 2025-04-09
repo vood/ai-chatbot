@@ -329,7 +329,7 @@ export function AgentForm({
       <form
         id="agent-form"
         onSubmit={form.handleSubmit(handleFormSubmit)}
-        className="space-y-6 max-h-[70vh] overflow-y-auto pr-3"
+        className="space-y-6 max-h-[70vh] overflow-y-auto pr-3 p-3"
       >
         {/* Agent Image */}
         <div className="flex justify-center mb-6">

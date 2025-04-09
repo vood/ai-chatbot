@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { Avatar } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Pencil, Trash2, UserIcon } from "lucide-react"
+import Image from "next/image"
 
 interface AvatarUploadProps {
   initialImage?: string
@@ -106,11 +107,21 @@ export function AvatarUpload({
 
   return (
     <div className="relative inline-block">
-      <Avatar className={`${sizeClasses[size]} ${!image ? bgColor : ""} text-white flex items-center justify-center`}>
+      <Avatar
+        className={`${sizeClasses[size]} ${!image ? bgColor : ""} text-white flex items-center justify-center`}
+      >
         {image ? (
-          <img src={image || "/placeholder.svg"} alt="Avatar" className="h-full w-full object-cover" />
+          <Image
+            width={128}
+            height={128}
+            src={image || "/placeholder.svg"}
+            alt="Avatar"
+            className="h-full w-full object-cover"
+          />
         ) : name ? (
-          <span className={size === "lg" ? "text-xl" : "text-base"}>{name.charAt(0).toUpperCase()}</span>
+          <span className={size === "lg" ? "text-xl" : "text-base"}>
+            {name.charAt(0).toUpperCase()}
+          </span>
         ) : (
           <UserIcon className={userIconSizeClasses[size]} />
         )}
@@ -151,4 +162,3 @@ export function AvatarUpload({
     </div>
   )
 }
-
