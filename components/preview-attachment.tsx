@@ -18,9 +18,9 @@ export const PreviewAttachment = ({
           contentType.startsWith("image") ? (
             // NOTE: it is recommended to use next/image for images
             // eslint-disable-next-line @next/next/no-img-element
-            <Image
-              width={1000}
-              height={1000}
+            <img
+              // width={1000}
+              // height={1000}
               key={url}
               src={url}
               alt={name ?? "An image attachment"}

@@ -20,11 +20,6 @@ import { DocumentPreview } from "./document-preview"
 import { MessageReasoning } from "./message-reasoning"
 import type { UseChatHelpers } from "@ai-sdk/react"
 import SearchResults from "./search-results"
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "./ui/collapsible"
 import { ChevronDown } from "lucide-react"
 import Image from "next/image"
 // Animation variants for the collapsible content
